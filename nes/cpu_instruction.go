@@ -61,6 +61,14 @@ const (
 	TYA                    // transfer Y to accumulator
 )
 
+func (i Instruction) IsBranch() bool {
+	branchInstructions := map[Instruction]bool{BCC: true, BCS: true, BEQ: true, BMI: true, BNE: true, BPL: true, BVC: true, BVS: true}
+	if _, ok := branchInstructions[i]; ok {
+		return true
+	}
+	return false
+}
+
 type InstructionFunc func(mode AddressMode, addr uint16) bool
 
 type InstructionInfo struct {

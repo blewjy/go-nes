@@ -1,3 +1,5 @@
+// Reference document: https://www.masswerk.at/6502/6502_instruction_set.html
+
 package nes
 
 type OpInfo struct {

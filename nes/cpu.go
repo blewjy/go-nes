@@ -124,10 +124,10 @@ func (c *CPU) Reset() {
 	// Reset status register
 	c.c = 0
 	c.z = 0
-	c.i = 0
+	c.i = 1
 	c.d = 0
 	c.b = 0
-	c.u = 0
+	c.u = 1
 	c.v = 0
 	c.n = 0
 
@@ -187,7 +187,7 @@ func (c *CPU) Pull16() uint16 {
 	return hi<<8 | lo
 }
 
-func (c *CPU) PushStatus() {
+func (c *CPU) GetStatus() uint8 {
 	N := c.n << 7
 	V := c.v << 6
 	U := c.u << 5
@@ -196,8 +196,11 @@ func (c *CPU) PushStatus() {
 	I := c.i << 2
 	Z := c.z << 1
 	C := c.c << 0
-	status := N | V | U | B | D | I | Z | C
-	c.Push(status)
+	return N | V | U | B | D | I | Z | C
+}
+
+func (c *CPU) PushStatus() {
+	c.Push(c.GetStatus())
 }
 
 func (c *CPU) PullStatus() {
@@ -216,17 +219,38 @@ func (c *CPU) Clock() {
 	opcode := c.Read(c.pc)
 	info := c.getInstructionInfo(opcode)
 
-	fmt.Printf("0x%04X, ", c.pc)
+	fmt.Printf("%04X, ", c.pc)
 	for i := uint8(0); i < info.instSize; i++ {
-		fmt.Printf("0x%02x ", c.Read(c.pc+uint16(i)))
+		fmt.Printf("%02X ", c.Read(c.pc+uint16(i)))
 	}
-	fmt.Println("CYC: ", c.cycle)
+	fmt.Printf("\t\tA: %02X X: %02X Y: %02X P: %02X SP: %02X", c.a, c.x, c.y, c.GetStatus(), c.stackPtr)
+
+	fmt.Println("\tCYC: ", c.cycle)
 	addrInfo := info.addrModeFunc()
 
 	c.pc += uint16(info.instSize)
 
-	info.instFunc(addrInfo.mode, addrInfo.address)
+	hasAdditionalCycles := info.instFunc(addrInfo.mode, addrInfo.address)
+	if hasAdditionalCycles {
+		c.cycle += c.GetAdditionalCycles(info, addrInfo)
+	}
 
 	c.cycle += int(info.instCycles)
 	// todo: return number of cycles??
+}
+
+func (c *CPU) GetAdditionalCycles(info InstructionInfo, addrInfo AddressInfo) int {
+	if info.inst.IsBranch() {
+		if addrInfo.crossed {
+			return 2
+		} else {
+			return 1
+		}
+	} else {
+		if addrInfo.crossed {
+			return 1
+		} else {
+			return 0
+		}
+	}
 }
