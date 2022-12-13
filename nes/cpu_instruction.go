@@ -71,29 +71,6 @@ func (i Instruction) IsBranch() bool {
 
 type InstructionFunc func(mode AddressMode, addr uint16) bool
 
-type InstructionInfo struct {
-	addrMode     AddressMode
-	addrModeFunc AddressModeFunc
-	inst         Instruction
-	instFunc     InstructionFunc
-	instSize     uint8
-	instCycles   uint8
-}
-
-func (cpu *CPU) getInstructionInfo(opcode uint8) InstructionInfo {
-	opInfo := opcodeToInfo[opcode]
-	addrModeFunc := cpu.addressModeToAddressModeFunc[opInfo.addrMode]
-	instFunc := cpu.instToInstFunc[opInfo.inst]
-	return InstructionInfo{
-		addrMode:     opInfo.addrMode,
-		addrModeFunc: addrModeFunc,
-		inst:         opInfo.inst,
-		instFunc:     instFunc,
-		instSize:     opInfo.instSize,
-		instCycles:   opInfo.instCycles,
-	}
-}
-
 // ADC - Add Memory to Accumulator with Carry
 //
 //	A + M + C -> A, C

@@ -15,27 +15,15 @@ type CPU struct {
 	// cycles???
 	cycle int
 
-	// emulated maps (must be init-ed)
-	addressModeToAddressModeFunc map[AddressMode]AddressModeFunc
-	instToInstFunc               map[Instruction]InstructionFunc
+	// Opcode table
+	table [256]OpcodeInfo
 }
 
 func NewCPU(bus *Bus) *CPU {
 	cpu := &CPU{
 		bus: bus,
 	}
-	cpu.addressModeToAddressModeFunc = map[AddressMode]AddressModeFunc{
-		modeAccu: cpu.A, modeAbso: cpu.abs, modeAbsX: cpu.absX, modeAbsY: cpu.absY,
-		modeImmd: cpu.immd, modeImpl: cpu.impl, modeIndi: cpu.ind, modeXInd: cpu.xInd,
-		modeIndY: cpu.indY, modeRela: cpu.rel, modeZpag: cpu.zpg, modeZpgX: cpu.zpgX,
-		modeZpgY: cpu.zpgY,
-	}
-	cpu.instToInstFunc = map[Instruction]InstructionFunc{
-		ADC: cpu.adc, AND: cpu.and, ASL: cpu.asl, BCC: cpu.bcc, BCS: cpu.bcs, BEQ: cpu.beq, BIT: cpu.bit, BMI: cpu.bmi, BNE: cpu.bne, BPL: cpu.bpl, BRK: cpu.brk, BVC: cpu.bvc, BVS: cpu.bvs, CLC: cpu.clc,
-		CLD: cpu.cld, CLI: cpu.cli, CLV: cpu.clv, CMP: cpu.cmp, CPX: cpu.cpx, CPY: cpu.cpy, DEC: cpu.dec, DEX: cpu.dex, DEY: cpu.dey, EOR: cpu.eor, INC: cpu.inc, INX: cpu.inx, INY: cpu.iny, JMP: cpu.jmp,
-		JSR: cpu.jsr, LDA: cpu.lda, LDX: cpu.ldx, LDY: cpu.ldy, LSR: cpu.lsr, NOP: cpu.nop, ORA: cpu.ora, PHA: cpu.pha, PHP: cpu.php, PLA: cpu.pla, PLP: cpu.plp, ROL: cpu.rol, ROR: cpu.ror, RTI: cpu.rti,
-		RTS: cpu.rts, SBC: cpu.sbc, SEC: cpu.sec, SED: cpu.sed, SEI: cpu.sei, STA: cpu.sta, STX: cpu.stx, STY: cpu.sty, TAX: cpu.tax, TAY: cpu.tay, TSX: cpu.tsx, TXA: cpu.txa, TXS: cpu.txs, TYA: cpu.tya,
-	}
+	cpu.InitOpcodeTable()
 	return cpu
 }
 
@@ -119,7 +107,7 @@ func (cpu *CPU) PullStatus() {
 
 func (cpu *CPU) Clock() {
 	opcode := cpu.Read(cpu.pc)
-	info := cpu.getInstructionInfo(opcode)
+	info := cpu.table[opcode]
 
 	addrInfo := info.addrModeFunc()
 
@@ -138,7 +126,7 @@ func (cpu *CPU) PeekCurrentSnapshot() string {
 	result := ""
 
 	opcode := cpu.Read(cpu.pc)
-	info := cpu.getInstructionInfo(opcode)
+	info := cpu.table[opcode]
 
 	result += fmt.Sprintf("%04X, ", cpu.pc)
 	for i := uint8(0); i < info.instSize; i++ {
@@ -151,7 +139,7 @@ func (cpu *CPU) PeekCurrentSnapshot() string {
 	return result
 }
 
-func (cpu *CPU) GetAdditionalCycles(info InstructionInfo, addrInfo AddressInfo) int {
+func (cpu *CPU) GetAdditionalCycles(info OpcodeInfo, addrInfo AddressInfo) int {
 	if info.inst.IsBranch() {
 		if addrInfo.crossed {
 			return 2
