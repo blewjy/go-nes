@@ -383,11 +383,11 @@ func (c *CPU) cmp(mode AddressMode, addr uint16) bool {
 		c.SetC(false)
 		c.SetN(A - M)
 	} else if A > M {
-		c.SetZ(true)
+		c.SetZ(false)
 		c.SetC(true)
 		c.SetN(0)
 	} else {
-		c.SetZ(false)
+		c.SetZ(true)
 		c.SetC(true)
 		c.SetN(A - M)
 	}
