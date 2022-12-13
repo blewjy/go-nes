@@ -28,10 +28,10 @@ func TestRegression1(t *testing.T) {
 	assert(cpuSnapshot.StackPtr, uint8(0xFD))
 	assert(cpuSnapshot.C, uint8(0))
 	assert(cpuSnapshot.Z, uint8(1))
-	assert(cpuSnapshot.I, uint8(0))
+	assert(cpuSnapshot.I, uint8(1))
 	assert(cpuSnapshot.D, uint8(0))
 	assert(cpuSnapshot.B, uint8(0))
-	assert(cpuSnapshot.U, uint8(0))
+	assert(cpuSnapshot.U, uint8(1))
 	assert(cpuSnapshot.V, uint8(0))
 	assert(cpuSnapshot.N, uint8(0))
 
