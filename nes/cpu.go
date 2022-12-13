@@ -219,13 +219,6 @@ func (c *CPU) Clock() {
 	opcode := c.Read(c.pc)
 	info := c.getInstructionInfo(opcode)
 
-	fmt.Printf("%04X, ", c.pc)
-	for i := uint8(0); i < info.instSize; i++ {
-		fmt.Printf("%02X ", c.Read(c.pc+uint16(i)))
-	}
-	fmt.Printf("\t\tA: %02X X: %02X Y: %02X P: %02X SP: %02X", c.a, c.x, c.y, c.GetStatus(), c.stackPtr)
-
-	fmt.Println("\tCYC: ", c.cycle)
 	addrInfo := info.addrModeFunc()
 
 	c.pc += uint16(info.instSize)
@@ -237,6 +230,23 @@ func (c *CPU) Clock() {
 
 	c.cycle += int(info.instCycles)
 	// todo: return number of cycles??
+}
+
+func (c *CPU) PeekCurrentSnapshot() string {
+	result := ""
+
+	opcode := c.Read(c.pc)
+	info := c.getInstructionInfo(opcode)
+
+	result += fmt.Sprintf("%04X, ", c.pc)
+	for i := uint8(0); i < info.instSize; i++ {
+		result += fmt.Sprintf("%02X ", c.Read(c.pc+uint16(i)))
+	}
+	result += fmt.Sprintf("\t\tA: %02X X: %02X Y: %02X P: %02X SP: %02X", c.a, c.x, c.y, c.GetStatus(), c.stackPtr)
+
+	result += fmt.Sprint("\tCYC: ", c.cycle)
+
+	return result
 }
 
 func (c *CPU) GetAdditionalCycles(info InstructionInfo, addrInfo AddressInfo) int {

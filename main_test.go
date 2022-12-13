@@ -1,8 +1,13 @@
 package main
 
 import (
+	"bufio"
 	"fmt"
 	"go-nes/emulator"
+	"go-nes/nes"
+	"os"
+	"strconv"
+	"strings"
 	"testing"
 )
 
@@ -12,8 +17,8 @@ func assert(a interface{}, b interface{}) {
 	}
 }
 
-func TestRegression1(t *testing.T) {
-	fmt.Println("Running TestRegression 1...")
+func TestBasic(t *testing.T) {
+	fmt.Println("Running TestBasic...")
 
 	program := "A20A8E0000A2038E0100AC0000A900186D010088D0FA8D0200EAEAEA"
 	startAddr := uint16(0x0000)
@@ -26,14 +31,7 @@ func TestRegression1(t *testing.T) {
 	assert(cpuSnapshot.X, uint8(0x03))
 	assert(cpuSnapshot.Y, uint8(0x00))
 	assert(cpuSnapshot.StackPtr, uint8(0xFD))
-	assert(cpuSnapshot.C, uint8(0))
-	assert(cpuSnapshot.Z, uint8(1))
-	assert(cpuSnapshot.I, uint8(1))
-	assert(cpuSnapshot.D, uint8(0))
-	assert(cpuSnapshot.B, uint8(0))
-	assert(cpuSnapshot.U, uint8(1))
-	assert(cpuSnapshot.V, uint8(0))
-	assert(cpuSnapshot.N, uint8(0))
+	assert(cpuSnapshot.P, uint8(0x26))
 
 	assert(ramSnapshot[0x0000], uint8(0x0A))
 	assert(ramSnapshot[0x0001], uint8(0x03))
@@ -69,5 +67,107 @@ func TestRegression1(t *testing.T) {
 	assert(ramSnapshot[0x001E], uint8(0x00))
 	assert(ramSnapshot[0x001F], uint8(0x00))
 
-	fmt.Println("TestRegression1 complete!")
+	fmt.Println("TestBasic complete!")
+}
+
+func TestNestest(t *testing.T) {
+	fmt.Println("Running TestNestest...")
+
+	// Prepare the nestest.txt log
+	results := parseNestestLog()
+
+	nes := emulator.NewEmulatorWithMode(emulator.Test)
+
+	cpuSnapshot, _ := nes.StartWithNestestROMAsTest()
+	for i := 0; i < 100; i++ {
+		fmt.Print(nes.PeekCurrentSnapshot())
+		assert(cpuSnapshot, results[i])
+		fmt.Println("\t\u2713")
+		cpuSnapshot, _ = nes.ClockAsTest()
+	}
+	fmt.Println("TestNestest complete!")
+
+}
+
+func parseNestestLog() []nes.PeekCPUResult {
+	file, err := os.Open("roms/nestest.txt")
+	if err != nil {
+		panic("Failed to open nestest.txt!")
+	}
+	scanner := bufio.NewScanner(file)
+	scanner.Split(bufio.ScanLines)
+	var text []string
+	for scanner.Scan() {
+		text = append(text, scanner.Text())
+	}
+	file.Close()
+
+	var results []nes.PeekCPUResult
+
+	for _, line := range text {
+
+		result := nes.PeekCPUResult{}
+
+		var v uint64
+
+		// PC
+		PC := strings.Split(line, " ")[0]
+		v, err = strconv.ParseUint(PC, 16, 16)
+		if err != nil {
+			panic(err)
+		}
+		result.PC = uint16(v)
+
+		// A
+		A := strings.Split(strings.Split(line, "A:")[1], " ")[0]
+		v, err = strconv.ParseUint(A, 16, 8)
+		if err != nil {
+			panic(err)
+		}
+		result.A = uint8(v)
+
+		// X
+		X := strings.Split(strings.Split(line, "X:")[1], " ")[0]
+		v, err = strconv.ParseUint(X, 16, 8)
+		if err != nil {
+			panic(err)
+		}
+		result.X = uint8(v)
+
+		// Y
+		Y := strings.Split(strings.Split(line, "Y:")[1], " ")[0]
+		v, err = strconv.ParseUint(Y, 16, 8)
+		if err != nil {
+			panic(err)
+		}
+		result.Y = uint8(v)
+
+		// P
+		P := strings.Split(strings.Split(line, "P:")[1], " ")[0]
+		v, err = strconv.ParseUint(P, 16, 8)
+		if err != nil {
+			panic(err)
+		}
+		result.P = uint8(v)
+
+		// SP
+		SP := strings.Split(strings.Split(line, "SP:")[1], " ")[0]
+		v, err = strconv.ParseUint(SP, 16, 8)
+		if err != nil {
+			panic(err)
+		}
+		result.StackPtr = uint8(v)
+
+		// CYC
+		CYC := strings.Split(strings.Split(line, "CYC:")[1], " ")[0]
+		v, err = strconv.ParseUint(CYC, 10, 64)
+		if err != nil {
+			panic(err)
+		}
+		result.Cycle = int(v)
+
+		results = append(results, result)
+	}
+
+	return results
 }

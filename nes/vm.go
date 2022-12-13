@@ -56,14 +56,8 @@ type PeekCPUResult struct {
 	Y        uint8
 	StackPtr uint8
 	PC       uint16
-	C        uint8
-	Z        uint8
-	I        uint8
-	D        uint8
-	B        uint8
-	U        uint8
-	V        uint8
-	N        uint8
+	P        uint8
+	Cycle    int
 }
 
 // PeekCPU returns a snapshot of the CPU registers as a PeekCPUResult.
@@ -74,14 +68,8 @@ func (v *VM) PeekCPU() PeekCPUResult {
 		Y:        v.bus.CPU.y,
 		StackPtr: v.bus.CPU.stackPtr,
 		PC:       v.bus.CPU.pc,
-		C:        v.bus.CPU.c,
-		Z:        v.bus.CPU.z,
-		I:        v.bus.CPU.i,
-		D:        v.bus.CPU.d,
-		B:        v.bus.CPU.b,
-		U:        v.bus.CPU.u,
-		V:        v.bus.CPU.v,
-		N:        v.bus.CPU.n,
+		P:        v.bus.CPU.GetStatus(),
+		Cycle:    v.bus.CPU.cycle,
 	}
 }
 
@@ -95,4 +83,8 @@ func (v *VM) PeekRAM(start, end uint16) []byte {
 		}
 	}
 	return result
+}
+
+func (v *VM) PeekCPUSnapshot() string {
+	return v.bus.CPU.PeekCurrentSnapshot()
 }
