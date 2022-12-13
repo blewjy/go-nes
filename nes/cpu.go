@@ -81,7 +81,6 @@ func (cpu *CPU) Write16(addr, data uint16) {
 }
 
 func (cpu *CPU) Push(data uint8) {
-	//fmt.Printf("Pushing to 0x%02X to stack at 0x%04X\n", data, 0x100|uint16(cpu.sp))
 	cpu.Write(0x100|uint16(cpu.sp), data)
 	cpu.sp--
 }
@@ -95,9 +94,7 @@ func (cpu *CPU) Push16(data uint16) {
 
 func (cpu *CPU) Pull() uint8 {
 	cpu.sp++
-	data := cpu.Read(0x100 | uint16(cpu.sp))
-	//fmt.Printf("Pulling data 0x%02X from stack at 0x%04X\n", data, 0x100|uint16(cpu.sp))
-	return data
+	return cpu.Read(0x100 | uint16(cpu.sp))
 }
 
 func (cpu *CPU) Pull16() uint16 {
@@ -111,7 +108,7 @@ func (cpu *CPU) GetStatus() uint8 {
 }
 
 func (cpu *CPU) PushStatus() {
-	cpu.Push(cpu.GetStatus())
+	cpu.Push(cpu.p)
 }
 
 func (cpu *CPU) PullStatus() {
