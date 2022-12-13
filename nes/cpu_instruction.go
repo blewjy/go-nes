@@ -408,11 +408,11 @@ func (c *CPU) cpx(mode AddressMode, addr uint16) bool {
 		c.SetC(false)
 		c.SetN(X - M)
 	} else if X > M {
-		c.SetZ(true)
+		c.SetZ(false)
 		c.SetC(true)
 		c.SetN(0)
 	} else {
-		c.SetZ(false)
+		c.SetZ(true)
 		c.SetC(true)
 		c.SetN(X - M)
 	}
@@ -433,11 +433,11 @@ func (c *CPU) cpy(mode AddressMode, addr uint16) bool {
 		c.SetC(false)
 		c.SetN(Y - M)
 	} else if Y > M {
-		c.SetZ(true)
+		c.SetZ(false)
 		c.SetC(true)
 		c.SetN(0)
 	} else {
-		c.SetZ(false)
+		c.SetZ(true)
 		c.SetC(true)
 		c.SetN(Y - M)
 	}
