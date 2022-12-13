@@ -66,7 +66,7 @@ func (v *VM) PeekCPU() PeekCPUResult {
 		A:        v.bus.CPU.a,
 		X:        v.bus.CPU.x,
 		Y:        v.bus.CPU.y,
-		StackPtr: v.bus.CPU.stackPtr,
+		StackPtr: v.bus.CPU.sp,
 		PC:       v.bus.CPU.pc,
 		P:        v.bus.CPU.GetStatus(),
 		Cycle:    v.bus.CPU.cycle,

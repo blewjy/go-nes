@@ -40,7 +40,7 @@ func IsCrossed(old, new uint16) bool {
 }
 
 // A (Accumulator) - operand is AC (implied single byte instruction)
-func (c *CPU) A() AddressInfo {
+func (cpu *CPU) A() AddressInfo {
 	return AddressInfo{
 		mode: modeAccu,
 	}
@@ -50,8 +50,8 @@ func (c *CPU) A() AddressInfo {
 //
 // 16-bit address words are little endian, lo(w)-byte first, followed by the hi(gh)-byte.
 // (An assembler will use a human-readable, big-endian notation as in $HHLL.)
-func (c *CPU) abs() AddressInfo {
-	addr := c.Read16(c.pc + 1)
+func (cpu *CPU) abs() AddressInfo {
+	addr := cpu.Read16(cpu.pc + 1)
 	return AddressInfo{
 		mode:    modeAbso,
 		address: addr,
@@ -59,9 +59,9 @@ func (c *CPU) abs() AddressInfo {
 }
 
 // absX (absolute, X-indexed) - operand is address; effective address is address incremented by X with carry
-func (c *CPU) absX() AddressInfo {
-	baseAddr := c.Read16(c.pc + 1)
-	addr := baseAddr + uint16(c.x)
+func (cpu *CPU) absX() AddressInfo {
+	baseAddr := cpu.Read16(cpu.pc + 1)
+	addr := baseAddr + uint16(cpu.x)
 	return AddressInfo{
 		mode:    modeAbsX,
 		address: addr,
@@ -70,9 +70,9 @@ func (c *CPU) absX() AddressInfo {
 }
 
 // absY (absolute, Y-indexed) - operand is address; effective address is address incremented by Y with carry
-func (c *CPU) absY() AddressInfo {
-	baseAddr := c.Read16(c.pc + 1)
-	addr := baseAddr + uint16(c.y)
+func (cpu *CPU) absY() AddressInfo {
+	baseAddr := cpu.Read16(cpu.pc + 1)
+	addr := baseAddr + uint16(cpu.y)
 	return AddressInfo{
 		mode:    modeAbsY,
 		address: addr,
@@ -81,31 +81,31 @@ func (c *CPU) absY() AddressInfo {
 }
 
 // immd (immediate) - operand is byte BB
-func (c *CPU) immd() AddressInfo {
+func (cpu *CPU) immd() AddressInfo {
 	return AddressInfo{
 		mode:    modeImmd,
-		address: c.pc + 1,
+		address: cpu.pc + 1,
 	}
 }
 
 // impl (implied) - operand implied
-func (c *CPU) impl() AddressInfo {
+func (cpu *CPU) impl() AddressInfo {
 	return AddressInfo{
 		mode: modeImpl,
 	}
 }
 
 // ind (indirect) - operand is address; effective address is contents of word at address: C.w($HHLL)
-func (c *CPU) ind() AddressInfo {
+func (cpu *CPU) ind() AddressInfo {
 	var addr uint16
-	pointer := c.Read16(c.pc + 1)
+	pointer := cpu.Read16(cpu.pc + 1)
 	// simulate the 6502 bug - if pointer is at page boundary, the hi-byte will actually not have its page incremented
 	if pointer&0x00FF == 0x00FF {
-		lo := uint16(c.Read(pointer))
-		hi := uint16(c.Read(pointer & 0xFF00))
+		lo := uint16(cpu.Read(pointer))
+		hi := uint16(cpu.Read(pointer & 0xFF00))
 		addr = hi<<8 | lo
 	} else {
-		addr = c.Read16(pointer)
+		addr = cpu.Read16(pointer)
 	}
 	return AddressInfo{
 		mode:    modeIndi,
@@ -114,18 +114,18 @@ func (c *CPU) ind() AddressInfo {
 }
 
 // xInd (X-indexed, indirect) - operand is zero-page address; effective address is word in (LL + X, LL + X + 1), inc. without carry: C.w($00LL + X)
-func (c *CPU) xInd() AddressInfo {
+func (cpu *CPU) xInd() AddressInfo {
 	var addr uint16
-	baseAddr := c.Read(c.pc + 1)
-	absAddr := uint16(baseAddr) + uint16(c.x)
+	baseAddr := cpu.Read(cpu.pc + 1)
+	absAddr := uint16(baseAddr) + uint16(cpu.x)
 	pointer := absAddr & 0x00FF
 	// simulate the 6502 bug - if pointer is at page boundary, the hi-byte will actually not have its page incremented
 	if pointer&0x00FF == 0x00FF {
-		lo := uint16(c.Read(pointer))
-		hi := uint16(c.Read(pointer & 0xFF00))
+		lo := uint16(cpu.Read(pointer))
+		hi := uint16(cpu.Read(pointer & 0xFF00))
 		addr = hi<<8 | lo
 	} else {
-		addr = c.Read16(pointer)
+		addr = cpu.Read16(pointer)
 	}
 	return AddressInfo{
 		mode:    modeXInd,
@@ -134,18 +134,18 @@ func (c *CPU) xInd() AddressInfo {
 }
 
 // indY (indirect, Y-indexed) - operand is zero-page address; effective address is word in (LL, LL + 1) incremented by Y with carry: C.w($00LL) + Y
-func (c *CPU) indY() AddressInfo {
+func (cpu *CPU) indY() AddressInfo {
 	var baseAddr uint16
-	pointer := uint16(c.Read(c.pc + 1))
+	pointer := uint16(cpu.Read(cpu.pc + 1))
 	// simulate the 6502 bug - if pointer is at page boundary, the hi-byte will actually not have its page incremented
 	if pointer&0x00FF == 0x00FF {
-		lo := uint16(c.Read(pointer))
-		hi := uint16(c.Read(pointer & 0xFF00))
+		lo := uint16(cpu.Read(pointer))
+		hi := uint16(cpu.Read(pointer & 0xFF00))
 		baseAddr = hi<<8 | lo
 	} else {
-		baseAddr = c.Read16(pointer)
+		baseAddr = cpu.Read16(pointer)
 	}
-	addr := baseAddr + uint16(c.y)
+	addr := baseAddr + uint16(cpu.y)
 	return AddressInfo{
 		mode:    modeIndY,
 		address: addr,
@@ -154,10 +154,10 @@ func (c *CPU) indY() AddressInfo {
 }
 
 // rel (relative) - branch target is PC + signed offset BB
-func (c *CPU) rel() AddressInfo {
+func (cpu *CPU) rel() AddressInfo {
 	var addr uint16
-	offset := uint16(c.Read(c.pc + 1))
-	baseAddr := c.pc + 2
+	offset := uint16(cpu.Read(cpu.pc + 1))
+	baseAddr := cpu.pc + 2
 	if offset < 0x80 {
 		addr = baseAddr + offset
 	} else {
@@ -171,8 +171,8 @@ func (c *CPU) rel() AddressInfo {
 }
 
 // zpg (zero-page) - operand is zero-page address (hi-byte is zero, address = $00LL)
-func (c *CPU) zpg() AddressInfo {
-	addr := uint16(c.Read(c.pc + 1))
+func (cpu *CPU) zpg() AddressInfo {
+	addr := uint16(cpu.Read(cpu.pc + 1))
 	return AddressInfo{
 		mode:    modeZpag,
 		address: addr,
@@ -180,8 +180,8 @@ func (c *CPU) zpg() AddressInfo {
 }
 
 // zpgX (zero-page, X-indexed) - operand is zero-page address; effective address is address incremented by X without carry
-func (c *CPU) zpgX() AddressInfo {
-	addr := uint16(c.Read(c.pc+1) + c.x)
+func (cpu *CPU) zpgX() AddressInfo {
+	addr := uint16(cpu.Read(cpu.pc+1) + cpu.x)
 	return AddressInfo{
 		mode:    modeZpgX,
 		address: addr,
@@ -189,8 +189,8 @@ func (c *CPU) zpgX() AddressInfo {
 }
 
 // zpgX (zero-page, Y-indexed) - operand is zero-page address; effective address is address incremented by Y without carry
-func (c *CPU) zpgY() AddressInfo {
-	addr := uint16(c.Read(c.pc+1) + c.y)
+func (cpu *CPU) zpgY() AddressInfo {
+	addr := uint16(cpu.Read(cpu.pc+1) + cpu.y)
 	return AddressInfo{
 		mode:    modeZpgY,
 		address: addr,

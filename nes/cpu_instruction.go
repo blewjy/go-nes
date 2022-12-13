@@ -80,10 +80,10 @@ type InstructionInfo struct {
 	instCycles   uint8
 }
 
-func (c *CPU) getInstructionInfo(opcode uint8) InstructionInfo {
+func (cpu *CPU) getInstructionInfo(opcode uint8) InstructionInfo {
 	opInfo := opcodeToInfo[opcode]
-	addrModeFunc := c.addressModeToAddressModeFunc[opInfo.addrMode]
-	instFunc := c.instToInstFunc[opInfo.inst]
+	addrModeFunc := cpu.addressModeToAddressModeFunc[opInfo.addrMode]
+	instFunc := cpu.instToInstFunc[opInfo.inst]
 	return InstructionInfo{
 		addrMode:     opInfo.addrMode,
 		addrModeFunc: addrModeFunc,
@@ -100,16 +100,21 @@ func (c *CPU) getInstructionInfo(opcode uint8) InstructionInfo {
 //
 //	N Z C I D V
 //	+ + + - - +
-func (c *CPU) adc(mode AddressMode, addr uint16) bool {
-	A := c.a
-	M := c.Read(addr)
-	C := c.c
-	c.a = A + M + C
+func (cpu *CPU) adc(mode AddressMode, addr uint16) bool {
+	A := cpu.a
+	M := cpu.Read(addr)
+	carry := cpu.c
+	cpu.a = A + M + carry
 
-	c.SetN(c.a)
-	c.SetZ(c.a == 0)
-	c.SetC(uint16(A)+uint16(M)+uint16(C) > 0xFF)
-	c.SetV((A^M)&0x80 == 0 && (A^c.a)&0x80 != 0)
+	cpu.SetFlag(N, IsNegative(cpu.a))
+	cpu.SetFlag(Z, IsZero(cpu.a))
+	cpu.SetFlag(C, uint16(A)+uint16(M)+uint16(carry) > 0xFF)
+	cpu.SetFlag(V, (A^M)&0x80 == 0 && (A^cpu.a)&0x80 != 0)
+
+	cpu.SetN(cpu.a)
+	cpu.SetZ(cpu.a == 0)
+	cpu.SetC(uint16(A)+uint16(M)+uint16(carry) > 0xFF)
+	cpu.SetV((A^M)&0x80 == 0 && (A^cpu.a)&0x80 != 0)
 
 	return true
 }
@@ -120,13 +125,16 @@ func (c *CPU) adc(mode AddressMode, addr uint16) bool {
 //
 //	N Z C I D V
 //	+ + - - - -
-func (c *CPU) and(mode AddressMode, addr uint16) bool {
-	A := c.a
-	M := c.Read(addr)
-	c.a = A & M
+func (cpu *CPU) and(mode AddressMode, addr uint16) bool {
+	A := cpu.a
+	M := cpu.Read(addr)
+	cpu.a = A & M
 
-	c.SetN(c.a)
-	c.SetZ(c.a == 0)
+	cpu.SetFlag(N, IsNegative(cpu.a))
+	cpu.SetFlag(Z, IsZero(cpu.a))
+
+	cpu.SetN(cpu.a)
+	cpu.SetZ(cpu.a == 0)
 
 	return true
 }
@@ -137,19 +145,32 @@ func (c *CPU) and(mode AddressMode, addr uint16) bool {
 //
 //	N Z C I D V
 //	+ + + - - -
-func (c *CPU) asl(mode AddressMode, addr uint16) bool {
+func (cpu *CPU) asl(mode AddressMode, addr uint16) bool {
 	if mode == modeAccu {
-		c.SetC(uint16(c.a)<<1 > 0xFF)
-		c.a <<= 1
-		c.SetN(c.a)
-		c.SetZ(c.a == 0)
+		cpu.SetC(uint16(cpu.a)<<1 > 0xFF)
+
+		cpu.SetFlag(C, uint16(cpu.a)<<1 > 0xFF)
+
+		cpu.a <<= 1
+		cpu.SetN(cpu.a)
+		cpu.SetZ(cpu.a == 0)
+
+		cpu.SetFlag(N, IsNegative(cpu.a))
+		cpu.SetFlag(Z, IsZero(cpu.a))
 	} else {
-		M := c.Read(addr)
-		c.SetC(uint16(M)<<1 > 0xFF)
+		M := cpu.Read(addr)
+		cpu.SetC(uint16(M)<<1 > 0xFF)
+
+		cpu.SetFlag(C, uint16(M)<<1 > 0xFF)
+
 		M <<= 1
-		c.SetN(M)
-		c.SetZ(M == 0)
-		c.Write(addr, M)
+		cpu.SetN(M)
+		cpu.SetZ(M == 0)
+
+		cpu.SetFlag(N, IsNegative(M))
+		cpu.SetFlag(Z, IsZero(M))
+
+		cpu.Write(addr, M)
 	}
 
 	return false
@@ -161,9 +182,9 @@ func (c *CPU) asl(mode AddressMode, addr uint16) bool {
 //
 //	N Z C I D V
 //	- - - - - -
-func (c *CPU) bcc(mode AddressMode, addr uint16) bool {
-	if c.c == 0 {
-		c.pc = addr
+func (cpu *CPU) bcc(mode AddressMode, addr uint16) bool {
+	if cpu.c == 0 {
+		cpu.pc = addr
 		return true
 	}
 
@@ -176,9 +197,9 @@ func (c *CPU) bcc(mode AddressMode, addr uint16) bool {
 //
 //	N Z C I D V
 //	- - - - - -
-func (c *CPU) bcs(mode AddressMode, addr uint16) bool {
-	if c.c == 1 {
-		c.pc = addr
+func (cpu *CPU) bcs(mode AddressMode, addr uint16) bool {
+	if cpu.c == 1 {
+		cpu.pc = addr
 		return true
 	}
 
@@ -191,9 +212,9 @@ func (c *CPU) bcs(mode AddressMode, addr uint16) bool {
 //
 //	N Z C I D V
 //	- - - - - -
-func (c *CPU) beq(mode AddressMode, addr uint16) bool {
-	if c.z == 1 {
-		c.pc = addr
+func (cpu *CPU) beq(mode AddressMode, addr uint16) bool {
+	if cpu.z == 1 {
+		cpu.pc = addr
 		return true
 	}
 
@@ -209,12 +230,16 @@ func (c *CPU) beq(mode AddressMode, addr uint16) bool {
 //
 //	N  Z C I D V
 //	M7 + - - - M6
-func (c *CPU) bit(mode AddressMode, addr uint16) bool {
-	A := c.a
-	M := c.Read(addr)
-	c.SetN(M)
-	c.SetZ(A&M == 0)
-	c.SetV(M&0x40 == 0x40)
+func (cpu *CPU) bit(mode AddressMode, addr uint16) bool {
+	A := cpu.a
+	M := cpu.Read(addr)
+	cpu.SetN(M)
+	cpu.SetZ(A&M == 0)
+	cpu.SetV(M&0x40 == 0x40)
+
+	cpu.SetFlag(N, IsNegative(M))
+	cpu.SetFlag(Z, IsZero(A&M))
+	cpu.SetFlag(V, M&0x40 == 0x40)
 
 	return false
 }
@@ -225,9 +250,9 @@ func (c *CPU) bit(mode AddressMode, addr uint16) bool {
 //
 //	N Z C I D V
 //	- - - - - -
-func (c *CPU) bmi(mode AddressMode, addr uint16) bool {
-	if c.n == 1 {
-		c.pc = addr
+func (cpu *CPU) bmi(mode AddressMode, addr uint16) bool {
+	if cpu.n == 1 {
+		cpu.pc = addr
 		return true
 	}
 
@@ -240,9 +265,9 @@ func (c *CPU) bmi(mode AddressMode, addr uint16) bool {
 //
 //	N Z C I D V
 //	- - - - - -
-func (c *CPU) bne(mode AddressMode, addr uint16) bool {
-	if c.z == 0 {
-		c.pc = addr
+func (cpu *CPU) bne(mode AddressMode, addr uint16) bool {
+	if cpu.z == 0 {
+		cpu.pc = addr
 		return true
 	}
 
@@ -255,9 +280,9 @@ func (c *CPU) bne(mode AddressMode, addr uint16) bool {
 //
 //	N Z C I D V
 //	- - - - - -
-func (c *CPU) bpl(mode AddressMode, addr uint16) bool {
-	if c.n == 0 {
-		c.pc = addr
+func (cpu *CPU) bpl(mode AddressMode, addr uint16) bool {
+	if cpu.n == 0 {
+		cpu.pc = addr
 		return true
 	}
 
@@ -280,13 +305,20 @@ func (c *CPU) bpl(mode AddressMode, addr uint16) bool {
 //
 //		N Z C I D V
 //		- - - 1 - -
-func (c *CPU) brk(mode AddressMode, addr uint16) bool {
-	c.SetI(true)
-	c.Push16(c.pc)
-	c.SetB(true)
-	c.PushStatus()
-	c.SetB(false)
-	c.pc = c.Read16(0xFFFE)
+func (cpu *CPU) brk(mode AddressMode, addr uint16) bool {
+	cpu.SetI(true)
+
+	cpu.SetFlag(I, true)
+
+	cpu.Push16(cpu.pc)
+
+	cpu.SetFlag(B, true)
+
+	cpu.SetB(true)
+	cpu.PushStatus()
+	cpu.SetFlag(B, false)
+	cpu.SetB(false)
+	cpu.pc = cpu.Read16(0xFFFE)
 
 	return false
 }
@@ -297,9 +329,9 @@ func (c *CPU) brk(mode AddressMode, addr uint16) bool {
 //
 //	N Z C I D V
 //	- - - - - -
-func (c *CPU) bvc(mode AddressMode, addr uint16) bool {
-	if c.v == 0 {
-		c.pc = addr
+func (cpu *CPU) bvc(mode AddressMode, addr uint16) bool {
+	if cpu.v == 0 {
+		cpu.pc = addr
 		return true
 	}
 
@@ -312,9 +344,9 @@ func (c *CPU) bvc(mode AddressMode, addr uint16) bool {
 //
 //	N Z C I D V
 //	- - - - - -
-func (c *CPU) bvs(mode AddressMode, addr uint16) bool {
-	if c.v == 1 {
-		c.pc = addr
+func (cpu *CPU) bvs(mode AddressMode, addr uint16) bool {
+	if cpu.v == 1 {
+		cpu.pc = addr
 		return true
 	}
 
@@ -327,8 +359,10 @@ func (c *CPU) bvs(mode AddressMode, addr uint16) bool {
 //
 //	N Z C I D V
 //	- - 0 - - -
-func (c *CPU) clc(mode AddressMode, addr uint16) bool {
-	c.c = 0
+func (cpu *CPU) clc(mode AddressMode, addr uint16) bool {
+	cpu.c = 0
+
+	cpu.SetFlag(C, false)
 
 	return false
 }
@@ -339,8 +373,10 @@ func (c *CPU) clc(mode AddressMode, addr uint16) bool {
 //
 //	N Z C I D V
 //	- - - - 0 -
-func (c *CPU) cld(mode AddressMode, addr uint16) bool {
-	c.d = 0
+func (cpu *CPU) cld(mode AddressMode, addr uint16) bool {
+	cpu.d = 0
+
+	cpu.SetFlag(D, false)
 
 	return false
 }
@@ -351,8 +387,10 @@ func (c *CPU) cld(mode AddressMode, addr uint16) bool {
 //
 //	N Z C I D V
 //	- - - 0 - -
-func (c *CPU) cli(mode AddressMode, addr uint16) bool {
-	c.i = 0
+func (cpu *CPU) cli(mode AddressMode, addr uint16) bool {
+	cpu.i = 0
+
+	cpu.SetFlag(I, false)
 
 	return false
 }
@@ -363,8 +401,10 @@ func (c *CPU) cli(mode AddressMode, addr uint16) bool {
 //
 //	N Z C I D V
 //	- - - - - 0
-func (c *CPU) clv(mode AddressMode, addr uint16) bool {
-	c.v = 0
+func (cpu *CPU) clv(mode AddressMode, addr uint16) bool {
+	cpu.v = 0
+
+	cpu.SetFlag(V, false)
 
 	return false
 }
@@ -375,21 +415,34 @@ func (c *CPU) clv(mode AddressMode, addr uint16) bool {
 //
 //	N Z C I D V
 //	+ + + - - -
-func (c *CPU) cmp(mode AddressMode, addr uint16) bool {
-	A := c.a
-	M := c.Read(addr)
+func (cpu *CPU) cmp(mode AddressMode, addr uint16) bool {
+	A := cpu.a
+	M := cpu.Read(addr)
 	if A < M {
-		c.SetZ(false)
-		c.SetC(false)
-		c.SetN(A - M)
+		cpu.SetZ(false)
+		cpu.SetC(false)
+		cpu.SetN(A - M)
+
+		cpu.SetFlag(Z, false)
+		cpu.SetFlag(C, false)
+		cpu.SetFlag(N, IsNegative(A-M))
+
 	} else if A > M {
-		c.SetZ(false)
-		c.SetC(true)
-		c.SetN(A - M)
+		cpu.SetZ(false)
+		cpu.SetC(true)
+		cpu.SetN(A - M)
+
+		cpu.SetFlag(Z, false)
+		cpu.SetFlag(C, true)
+		cpu.SetFlag(N, IsNegative(A-M))
 	} else {
-		c.SetZ(true)
-		c.SetC(true)
-		c.SetN(A - M)
+		cpu.SetZ(true)
+		cpu.SetC(true)
+		cpu.SetN(A - M)
+
+		cpu.SetFlag(Z, true)
+		cpu.SetFlag(C, true)
+		cpu.SetFlag(N, IsNegative(A-M))
 	}
 	return true
 }
@@ -400,21 +453,33 @@ func (c *CPU) cmp(mode AddressMode, addr uint16) bool {
 //
 //	N Z C I D V
 //	+ + + - - -
-func (c *CPU) cpx(mode AddressMode, addr uint16) bool {
-	X := c.x
-	M := c.Read(addr)
+func (cpu *CPU) cpx(mode AddressMode, addr uint16) bool {
+	X := cpu.x
+	M := cpu.Read(addr)
 	if X < M {
-		c.SetZ(false)
-		c.SetC(false)
-		c.SetN(X - M)
+		cpu.SetZ(false)
+		cpu.SetC(false)
+		cpu.SetN(X - M)
+
+		cpu.SetFlag(Z, false)
+		cpu.SetFlag(C, false)
+		cpu.SetFlag(N, IsNegative(X-M))
 	} else if X > M {
-		c.SetZ(false)
-		c.SetC(true)
-		c.SetN(X - M)
+		cpu.SetZ(false)
+		cpu.SetC(true)
+		cpu.SetN(X - M)
+
+		cpu.SetFlag(Z, false)
+		cpu.SetFlag(C, true)
+		cpu.SetFlag(N, IsNegative(X-M))
 	} else {
-		c.SetZ(true)
-		c.SetC(true)
-		c.SetN(X - M)
+		cpu.SetZ(true)
+		cpu.SetC(true)
+		cpu.SetN(X - M)
+
+		cpu.SetFlag(Z, true)
+		cpu.SetFlag(C, true)
+		cpu.SetFlag(N, IsNegative(X-M))
 	}
 	return true
 }
@@ -425,21 +490,33 @@ func (c *CPU) cpx(mode AddressMode, addr uint16) bool {
 //
 //	N Z C I D V
 //	+ + + - - -
-func (c *CPU) cpy(mode AddressMode, addr uint16) bool {
-	Y := c.y
-	M := c.Read(addr)
+func (cpu *CPU) cpy(mode AddressMode, addr uint16) bool {
+	Y := cpu.y
+	M := cpu.Read(addr)
 	if Y < M {
-		c.SetZ(false)
-		c.SetC(false)
-		c.SetN(Y - M)
+		cpu.SetZ(false)
+		cpu.SetC(false)
+		cpu.SetN(Y - M)
+
+		cpu.SetFlag(Z, false)
+		cpu.SetFlag(C, false)
+		cpu.SetFlag(N, IsNegative(Y-M))
 	} else if Y > M {
-		c.SetZ(false)
-		c.SetC(true)
-		c.SetN(Y - M)
+		cpu.SetZ(false)
+		cpu.SetC(true)
+		cpu.SetN(Y - M)
+
+		cpu.SetFlag(Z, false)
+		cpu.SetFlag(C, true)
+		cpu.SetFlag(N, IsNegative(Y-M))
 	} else {
-		c.SetZ(true)
-		c.SetC(true)
-		c.SetN(Y - M)
+		cpu.SetZ(true)
+		cpu.SetC(true)
+		cpu.SetN(Y - M)
+
+		cpu.SetFlag(Z, true)
+		cpu.SetFlag(C, true)
+		cpu.SetFlag(N, IsNegative(Y-M))
 	}
 	return true
 }
@@ -450,13 +527,16 @@ func (c *CPU) cpy(mode AddressMode, addr uint16) bool {
 //
 //	N Z C I D V
 //	+ + - - - -
-func (c *CPU) dec(mode AddressMode, addr uint16) bool {
-	M := c.Read(addr)
+func (cpu *CPU) dec(mode AddressMode, addr uint16) bool {
+	M := cpu.Read(addr)
 	M -= 1
-	c.Write(addr, M)
+	cpu.Write(addr, M)
 
-	c.SetN(M)
-	c.SetZ(M == 0)
+	cpu.SetN(M)
+	cpu.SetZ(M == 0)
+
+	cpu.SetFlag(N, IsNegative(M))
+	cpu.SetFlag(Z, IsZero(M))
 
 	return false
 }
@@ -467,11 +547,14 @@ func (c *CPU) dec(mode AddressMode, addr uint16) bool {
 //
 //	N Z C I D V
 //	+ + - - - -
-func (c *CPU) dex(mode AddressMode, addr uint16) bool {
-	c.x--
+func (cpu *CPU) dex(mode AddressMode, addr uint16) bool {
+	cpu.x--
 
-	c.SetN(c.x)
-	c.SetZ(c.x == 0)
+	cpu.SetN(cpu.x)
+	cpu.SetZ(cpu.x == 0)
+
+	cpu.SetFlag(N, IsNegative(cpu.x))
+	cpu.SetFlag(Z, IsZero(cpu.x))
 
 	return false
 }
@@ -482,11 +565,14 @@ func (c *CPU) dex(mode AddressMode, addr uint16) bool {
 //
 //	N Z C I D V
 //	+ + - - - -
-func (c *CPU) dey(mode AddressMode, addr uint16) bool {
-	c.y--
+func (cpu *CPU) dey(mode AddressMode, addr uint16) bool {
+	cpu.y--
 
-	c.SetN(c.y)
-	c.SetZ(c.y == 0)
+	cpu.SetN(cpu.y)
+	cpu.SetZ(cpu.y == 0)
+
+	cpu.SetFlag(N, IsNegative(cpu.y))
+	cpu.SetFlag(Z, IsZero(cpu.y))
 
 	return false
 }
@@ -497,14 +583,17 @@ func (c *CPU) dey(mode AddressMode, addr uint16) bool {
 //
 //	N Z C I D V
 //	+ + - - - -
-func (c *CPU) eor(mode AddressMode, addr uint16) bool {
-	A := c.a
-	M := c.Read(addr)
+func (cpu *CPU) eor(mode AddressMode, addr uint16) bool {
+	A := cpu.a
+	M := cpu.Read(addr)
 	A ^= M
-	c.a = A
+	cpu.a = A
 
-	c.SetN(A)
-	c.SetZ(A == 0)
+	cpu.SetN(A)
+	cpu.SetZ(A == 0)
+
+	cpu.SetFlag(N, IsNegative(A))
+	cpu.SetFlag(Z, IsZero(A))
 
 	return true
 }
@@ -515,13 +604,16 @@ func (c *CPU) eor(mode AddressMode, addr uint16) bool {
 //
 //	N Z C I D V
 //	+ + - - - -
-func (c *CPU) inc(mode AddressMode, addr uint16) bool {
-	M := c.Read(addr)
+func (cpu *CPU) inc(mode AddressMode, addr uint16) bool {
+	M := cpu.Read(addr)
 	M += 1
-	c.Write(addr, M)
+	cpu.Write(addr, M)
 
-	c.SetN(M)
-	c.SetZ(M == 0)
+	cpu.SetN(M)
+	cpu.SetZ(M == 0)
+
+	cpu.SetFlag(N, IsNegative(M))
+	cpu.SetFlag(Z, IsZero(M))
 
 	return false
 }
@@ -532,11 +624,14 @@ func (c *CPU) inc(mode AddressMode, addr uint16) bool {
 //
 //	N Z C I D V
 //	+ + - - - -
-func (c *CPU) inx(mode AddressMode, addr uint16) bool {
-	c.x++
+func (cpu *CPU) inx(mode AddressMode, addr uint16) bool {
+	cpu.x++
 
-	c.SetN(c.x)
-	c.SetZ(c.x == 0)
+	cpu.SetN(cpu.x)
+	cpu.SetZ(cpu.x == 0)
+
+	cpu.SetFlag(N, IsNegative(cpu.x))
+	cpu.SetFlag(Z, IsZero(cpu.x))
 
 	return false
 }
@@ -547,11 +642,14 @@ func (c *CPU) inx(mode AddressMode, addr uint16) bool {
 //
 //	N Z C I D V
 //	+ + - - - -
-func (c *CPU) iny(mode AddressMode, addr uint16) bool {
-	c.y++
+func (cpu *CPU) iny(mode AddressMode, addr uint16) bool {
+	cpu.y++
 
-	c.SetN(c.y)
-	c.SetZ(c.y == 0)
+	cpu.SetN(cpu.y)
+	cpu.SetZ(cpu.y == 0)
+
+	cpu.SetFlag(N, IsNegative(cpu.y))
+	cpu.SetFlag(Z, IsZero(cpu.y))
 
 	return false
 }
@@ -563,8 +661,8 @@ func (c *CPU) iny(mode AddressMode, addr uint16) bool {
 //
 //	N Z C I D V
 //	- - - - - -
-func (c *CPU) jmp(mode AddressMode, addr uint16) bool {
-	c.pc = addr
+func (cpu *CPU) jmp(mode AddressMode, addr uint16) bool {
+	cpu.pc = addr
 
 	return false
 }
@@ -577,9 +675,9 @@ func (c *CPU) jmp(mode AddressMode, addr uint16) bool {
 //
 //	N Z C I D V
 //	- - - - - -
-func (c *CPU) jsr(mode AddressMode, addr uint16) bool {
-	c.Push16(c.pc - 1) // ?!?!
-	c.pc = addr
+func (cpu *CPU) jsr(mode AddressMode, addr uint16) bool {
+	cpu.Push16(cpu.pc - 1) // ?!?!
+	cpu.pc = addr
 
 	return false
 }
@@ -590,11 +688,14 @@ func (c *CPU) jsr(mode AddressMode, addr uint16) bool {
 //
 //	N Z C I D V
 //	+ + - - - -
-func (c *CPU) lda(mode AddressMode, addr uint16) bool {
-	c.a = c.Read(addr)
+func (cpu *CPU) lda(mode AddressMode, addr uint16) bool {
+	cpu.a = cpu.Read(addr)
 
-	c.SetN(c.a)
-	c.SetZ(c.a == 0)
+	cpu.SetN(cpu.a)
+	cpu.SetZ(cpu.a == 0)
+
+	cpu.SetFlag(N, IsNegative(cpu.a))
+	cpu.SetFlag(Z, IsZero(cpu.a))
 
 	return true
 }
@@ -605,11 +706,14 @@ func (c *CPU) lda(mode AddressMode, addr uint16) bool {
 //
 //	N Z C I D V
 //	+ + - - - -
-func (c *CPU) ldx(mode AddressMode, addr uint16) bool {
-	c.x = c.Read(addr)
+func (cpu *CPU) ldx(mode AddressMode, addr uint16) bool {
+	cpu.x = cpu.Read(addr)
 
-	c.SetN(c.x)
-	c.SetZ(c.x == 0)
+	cpu.SetN(cpu.x)
+	cpu.SetZ(cpu.x == 0)
+
+	cpu.SetFlag(N, IsNegative(cpu.x))
+	cpu.SetFlag(Z, IsZero(cpu.x))
 
 	return true
 }
@@ -620,11 +724,14 @@ func (c *CPU) ldx(mode AddressMode, addr uint16) bool {
 //
 //	N Z C I D V
 //	+ + - - - -
-func (c *CPU) ldy(mode AddressMode, addr uint16) bool {
-	c.y = c.Read(addr)
+func (cpu *CPU) ldy(mode AddressMode, addr uint16) bool {
+	cpu.y = cpu.Read(addr)
 
-	c.SetN(c.y)
-	c.SetZ(c.y == 0)
+	cpu.SetN(cpu.y)
+	cpu.SetZ(cpu.y == 0)
+
+	cpu.SetFlag(N, IsNegative(cpu.y))
+	cpu.SetFlag(Z, IsZero(cpu.y))
 
 	return true
 }
@@ -635,26 +742,36 @@ func (c *CPU) ldy(mode AddressMode, addr uint16) bool {
 //
 //	N Z C I D V
 //	0 + + - - -
-func (c *CPU) lsr(mode AddressMode, addr uint16) bool {
+func (cpu *CPU) lsr(mode AddressMode, addr uint16) bool {
 	if mode == modeAccu {
-		c.SetC(c.a&1 > 0)
-		c.a >>= 1
-		c.SetN(c.a)
-		c.SetZ(c.a == 0)
+		cpu.SetFlag(C, cpu.a&1 > 0)
+		cpu.SetC(cpu.a&1 > 0)
+		cpu.a >>= 1
+		cpu.SetN(cpu.a)
+		cpu.SetZ(cpu.a == 0)
+
+		cpu.SetFlag(N, IsNegative(cpu.a))
+		cpu.SetFlag(Z, IsZero(cpu.a))
 	} else {
-		M := c.Read(addr)
-		c.SetC(M&1 > 0)
+		M := cpu.Read(addr)
+		cpu.SetC(M&1 > 0)
+
+		cpu.SetFlag(C, M&1 > 0)
 		M >>= 1
-		c.SetN(M)
-		c.SetZ(M == 0)
-		c.Write(addr, M)
+		cpu.SetN(M)
+		cpu.SetZ(M == 0)
+
+		cpu.SetFlag(N, IsNegative(M))
+		cpu.SetFlag(Z, IsZero(M))
+
+		cpu.Write(addr, M)
 	}
 
 	return false
 }
 
 // NOP - No Operation
-func (c *CPU) nop(mode AddressMode, addr uint16) bool {
+func (cpu *CPU) nop(mode AddressMode, addr uint16) bool {
 	return false
 }
 
@@ -664,11 +781,14 @@ func (c *CPU) nop(mode AddressMode, addr uint16) bool {
 //
 //	N Z C I D V
 //	+ + - - - -
-func (c *CPU) ora(mode AddressMode, addr uint16) bool {
-	c.a |= c.Read(addr)
+func (cpu *CPU) ora(mode AddressMode, addr uint16) bool {
+	cpu.a |= cpu.Read(addr)
 
-	c.SetN(c.a)
-	c.SetZ(c.a == 0)
+	cpu.SetN(cpu.a)
+	cpu.SetZ(cpu.a == 0)
+
+	cpu.SetFlag(N, IsNegative(cpu.a))
+	cpu.SetFlag(Z, IsZero(cpu.a))
 
 	return true
 }
@@ -679,8 +799,8 @@ func (c *CPU) ora(mode AddressMode, addr uint16) bool {
 //
 //	N Z C I D V
 //	- - - - - -
-func (c *CPU) pha(mode AddressMode, addr uint16) bool {
-	c.Push(c.a)
+func (cpu *CPU) pha(mode AddressMode, addr uint16) bool {
+	cpu.Push(cpu.a)
 
 	return false
 }
@@ -691,11 +811,14 @@ func (c *CPU) pha(mode AddressMode, addr uint16) bool {
 //
 //	N Z C I D V
 //	- - - - - -
-func (c *CPU) php(mode AddressMode, addr uint16) bool {
-	c.SetU(true)
-	c.SetB(true)
-	c.PushStatus()
-	c.SetB(false)
+func (cpu *CPU) php(mode AddressMode, addr uint16) bool {
+	cpu.SetFlag(U, true)
+	cpu.SetFlag(B, true)
+	cpu.SetU(true)
+	cpu.SetB(true)
+	cpu.PushStatus()
+	cpu.SetFlag(B, false)
+	cpu.SetB(false)
 
 	return false
 }
@@ -706,11 +829,14 @@ func (c *CPU) php(mode AddressMode, addr uint16) bool {
 //
 //	N Z C I D V
 //	+ + - - - -
-func (c *CPU) pla(mode AddressMode, addr uint16) bool {
-	c.a = c.Pull()
+func (cpu *CPU) pla(mode AddressMode, addr uint16) bool {
+	cpu.a = cpu.Pull()
 
-	c.SetN(c.a)
-	c.SetZ(c.a == 0)
+	cpu.SetN(cpu.a)
+	cpu.SetZ(cpu.a == 0)
+
+	cpu.SetFlag(N, IsNegative(cpu.a))
+	cpu.SetFlag(Z, IsZero(cpu.a))
 
 	return false
 }
@@ -721,8 +847,8 @@ func (c *CPU) pla(mode AddressMode, addr uint16) bool {
 //
 //	N Z C I D V
 //	from stack
-func (c *CPU) plp(mode AddressMode, addr uint16) bool {
-	c.PullStatus()
+func (cpu *CPU) plp(mode AddressMode, addr uint16) bool {
+	cpu.PullStatus()
 
 	return false
 }
@@ -733,21 +859,27 @@ func (c *CPU) plp(mode AddressMode, addr uint16) bool {
 //
 //	N Z C I D V
 //	+ + + - - -
-func (c *CPU) rol(mode AddressMode, addr uint16) bool {
+func (cpu *CPU) rol(mode AddressMode, addr uint16) bool {
 	if mode == modeAccu {
-		C := c.c
-		c.c = c.a >> 7
-		c.a = c.a<<1 | C
-		c.SetN(c.a)
-		c.SetZ(c.a == 0)
+		C := cpu.c
+		cpu.c = cpu.a >> 7
+		cpu.a = cpu.a<<1 | C
+		cpu.SetN(cpu.a)
+		cpu.SetZ(cpu.a == 0)
+
+		cpu.SetFlag(N, IsNegative(cpu.a))
+		cpu.SetFlag(Z, IsZero(cpu.a))
 	} else {
-		C := c.c
-		M := c.Read(addr)
-		c.c = M >> 7
+		C := cpu.c
+		M := cpu.Read(addr)
+		cpu.c = M >> 7
 		M = M<<1 | C
-		c.SetN(M)
-		c.SetZ(M == 0)
-		c.Write(addr, M)
+		cpu.SetN(M)
+		cpu.SetZ(M == 0)
+
+		cpu.SetFlag(N, IsNegative(M))
+		cpu.SetFlag(Z, IsZero(M))
+		cpu.Write(addr, M)
 	}
 
 	return false
@@ -759,21 +891,30 @@ func (c *CPU) rol(mode AddressMode, addr uint16) bool {
 //
 //	N Z C I D V
 //	+ + + - - -
-func (c *CPU) ror(mode AddressMode, addr uint16) bool {
+func (cpu *CPU) ror(mode AddressMode, addr uint16) bool {
 	if mode == modeAccu {
-		C := c.c
-		c.c = c.a & 1
-		c.a = c.a>>1 | C<<7
-		c.SetN(c.a)
-		c.SetZ(c.a == 0)
+		carry := cpu.GetFlag(C)
+		cpu.c = cpu.a & 1
+
+		cpu.SetFlag(C, cpu.a&1 == 1)
+		cpu.a = cpu.a>>1 | carry<<7
+		cpu.SetN(cpu.a)
+		cpu.SetZ(cpu.a == 0)
+
+		cpu.SetFlag(N, IsNegative(cpu.a))
+		cpu.SetFlag(Z, IsZero(cpu.a))
 	} else {
-		C := c.c
-		M := c.Read(addr)
-		c.c = M & 1
-		M = M>>1 | C<<7
-		c.SetN(M)
-		c.SetZ(M == 0)
-		c.Write(addr, M)
+		carry := cpu.GetFlag(C)
+		M := cpu.Read(addr)
+		cpu.c = M & 1
+		cpu.SetFlag(C, M&1 == 1)
+		M = M>>1 | carry<<7
+		cpu.SetN(M)
+		cpu.SetZ(M == 0)
+
+		cpu.SetFlag(N, IsNegative(M))
+		cpu.SetFlag(Z, IsZero(M))
+		cpu.Write(addr, M)
 	}
 
 	return false
@@ -788,9 +929,9 @@ func (c *CPU) ror(mode AddressMode, addr uint16) bool {
 //
 //	N Z C I D V
 //	from stack
-func (c *CPU) rti(mode AddressMode, addr uint16) bool {
-	c.PullStatus()
-	c.pc = c.Pull16()
+func (cpu *CPU) rti(mode AddressMode, addr uint16) bool {
+	cpu.PullStatus()
+	cpu.pc = cpu.Pull16()
 
 	return false
 }
@@ -800,9 +941,9 @@ func (c *CPU) rti(mode AddressMode, addr uint16) bool {
 //	pull PC, PC+1 -> PC
 //
 //	N Z C I D V
-//	from stack
-func (c *CPU) rts(mode AddressMode, addr uint16) bool {
-	c.pc = c.Pull16() + 1
+//	- - - - - -
+func (cpu *CPU) rts(mode AddressMode, addr uint16) bool {
+	cpu.pc = cpu.Pull16() + 1
 
 	return false
 }
@@ -813,17 +954,22 @@ func (c *CPU) rts(mode AddressMode, addr uint16) bool {
 //
 //	N Z C I D V
 //	+ + + - - +
-func (c *CPU) sbc(mode AddressMode, addr uint16) bool {
-	A := uint16(c.a)
-	M := uint16(c.Read(addr)) ^ 0x00FF
-	C := uint16(c.c)
-	temp := A + M + C
-	c.a = uint8(temp)
+func (cpu *CPU) sbc(mode AddressMode, addr uint16) bool {
+	A := uint16(cpu.a)
+	M := uint16(cpu.Read(addr)) ^ 0x00FF
+	carry := uint16(cpu.c)
+	temp := A + M + carry
+	cpu.a = uint8(temp)
 
-	c.SetN(uint8(temp))
-	c.SetZ(uint8(temp) == 0)
-	c.SetC(A+M+C > 0xFF)
-	c.SetV((A^M)&0x80 == 0 && (A^temp)&0x80 != 0)
+	cpu.SetFlag(N, IsNegative(cpu.a))
+	cpu.SetFlag(Z, IsZero(cpu.a))
+	cpu.SetFlag(C, A+M+carry > 0xFF)
+	cpu.SetFlag(V, (A^M)&0x80 == 0 && (A^temp)&0x80 != 0)
+
+	cpu.SetN(uint8(temp))
+	cpu.SetZ(uint8(temp) == 0)
+	cpu.SetC(A+M+carry > 0xFF)
+	cpu.SetV((A^M)&0x80 == 0 && (A^temp)&0x80 != 0)
 
 	return true
 }
@@ -834,8 +980,10 @@ func (c *CPU) sbc(mode AddressMode, addr uint16) bool {
 //
 //	N Z C I D V
 //	- - 1 - - -
-func (c *CPU) sec(mode AddressMode, addr uint16) bool {
-	c.c = 1
+func (cpu *CPU) sec(mode AddressMode, addr uint16) bool {
+	cpu.c = 1
+
+	cpu.SetFlag(C, true)
 
 	return false
 }
@@ -846,8 +994,10 @@ func (c *CPU) sec(mode AddressMode, addr uint16) bool {
 //
 //	N Z C I D V
 //	- - - - 1 -
-func (c *CPU) sed(mode AddressMode, addr uint16) bool {
-	c.d = 1
+func (cpu *CPU) sed(mode AddressMode, addr uint16) bool {
+	cpu.d = 1
+
+	cpu.SetFlag(D, true)
 
 	return false
 }
@@ -858,8 +1008,9 @@ func (c *CPU) sed(mode AddressMode, addr uint16) bool {
 //
 //	N Z C I D V
 //	- - - 1 - -
-func (c *CPU) sei(mode AddressMode, addr uint16) bool {
-	c.i = 1
+func (cpu *CPU) sei(mode AddressMode, addr uint16) bool {
+	cpu.i = 1
+	cpu.SetFlag(I, true)
 
 	return false
 }
@@ -870,8 +1021,8 @@ func (c *CPU) sei(mode AddressMode, addr uint16) bool {
 //
 //	N Z C I D V
 //	- - - - - -
-func (c *CPU) sta(mode AddressMode, addr uint16) bool {
-	c.Write(addr, c.a)
+func (cpu *CPU) sta(mode AddressMode, addr uint16) bool {
+	cpu.Write(addr, cpu.a)
 
 	return false
 }
@@ -882,8 +1033,8 @@ func (c *CPU) sta(mode AddressMode, addr uint16) bool {
 //
 //	N Z C I D V
 //	- - - - - -
-func (c *CPU) stx(mode AddressMode, addr uint16) bool {
-	c.Write(addr, c.x)
+func (cpu *CPU) stx(mode AddressMode, addr uint16) bool {
+	cpu.Write(addr, cpu.x)
 
 	return false
 }
@@ -894,8 +1045,8 @@ func (c *CPU) stx(mode AddressMode, addr uint16) bool {
 //
 //	N Z C I D V
 //	- - - - - -
-func (c *CPU) sty(mode AddressMode, addr uint16) bool {
-	c.Write(addr, c.y)
+func (cpu *CPU) sty(mode AddressMode, addr uint16) bool {
+	cpu.Write(addr, cpu.y)
 
 	return false
 }
@@ -906,11 +1057,14 @@ func (c *CPU) sty(mode AddressMode, addr uint16) bool {
 //
 //	N Z C I D V
 //	+ + - - - -
-func (c *CPU) tax(mode AddressMode, addr uint16) bool {
-	c.x = c.a
+func (cpu *CPU) tax(mode AddressMode, addr uint16) bool {
+	cpu.x = cpu.a
 
-	c.SetN(c.x)
-	c.SetZ(c.x == 0)
+	cpu.SetN(cpu.x)
+	cpu.SetZ(cpu.x == 0)
+
+	cpu.SetFlag(N, IsNegative(cpu.x))
+	cpu.SetFlag(Z, IsZero(cpu.x))
 
 	return false
 }
@@ -921,11 +1075,14 @@ func (c *CPU) tax(mode AddressMode, addr uint16) bool {
 //
 //	N Z C I D V
 //	+ + - - - -
-func (c *CPU) tay(mode AddressMode, addr uint16) bool {
-	c.y = c.a
+func (cpu *CPU) tay(mode AddressMode, addr uint16) bool {
+	cpu.y = cpu.a
 
-	c.SetN(c.y)
-	c.SetZ(c.y == 0)
+	cpu.SetN(cpu.y)
+	cpu.SetZ(cpu.y == 0)
+
+	cpu.SetFlag(N, IsNegative(cpu.y))
+	cpu.SetFlag(Z, IsZero(cpu.y))
 
 	return false
 }
@@ -936,11 +1093,14 @@ func (c *CPU) tay(mode AddressMode, addr uint16) bool {
 //
 //	N Z C I D V
 //	+ + - - - -
-func (c *CPU) tsx(mode AddressMode, addr uint16) bool {
-	c.x = c.stackPtr
+func (cpu *CPU) tsx(mode AddressMode, addr uint16) bool {
+	cpu.x = cpu.sp
 
-	c.SetN(c.x)
-	c.SetZ(c.x == 0)
+	cpu.SetN(cpu.x)
+	cpu.SetZ(cpu.x == 0)
+
+	cpu.SetFlag(N, IsNegative(cpu.x))
+	cpu.SetFlag(Z, IsZero(cpu.x))
 
 	return false
 }
@@ -951,11 +1111,14 @@ func (c *CPU) tsx(mode AddressMode, addr uint16) bool {
 //
 //	N Z C I D V
 //	+ + - - - -
-func (c *CPU) txa(mode AddressMode, addr uint16) bool {
-	c.a = c.x
+func (cpu *CPU) txa(mode AddressMode, addr uint16) bool {
+	cpu.a = cpu.x
 
-	c.SetN(c.a)
-	c.SetZ(c.a == 0)
+	cpu.SetN(cpu.a)
+	cpu.SetZ(cpu.a == 0)
+
+	cpu.SetFlag(N, IsNegative(cpu.a))
+	cpu.SetFlag(Z, IsZero(cpu.a))
 
 	return false
 }
@@ -966,8 +1129,8 @@ func (c *CPU) txa(mode AddressMode, addr uint16) bool {
 //
 //	N Z C I D V
 //	- - - - - -
-func (c *CPU) txs(mode AddressMode, addr uint16) bool {
-	c.stackPtr = c.x
+func (cpu *CPU) txs(mode AddressMode, addr uint16) bool {
+	cpu.sp = cpu.x
 
 	return false
 }
@@ -978,11 +1141,14 @@ func (c *CPU) txs(mode AddressMode, addr uint16) bool {
 //
 //	N Z C I D V
 //	+ + - - - -
-func (c *CPU) tya(mode AddressMode, addr uint16) bool {
-	c.a = c.y
+func (cpu *CPU) tya(mode AddressMode, addr uint16) bool {
+	cpu.a = cpu.y
 
-	c.SetN(c.a)
-	c.SetZ(c.a == 0)
+	cpu.SetN(cpu.a)
+	cpu.SetZ(cpu.a == 0)
+
+	cpu.SetFlag(N, IsNegative(cpu.a))
+	cpu.SetFlag(Z, IsZero(cpu.a))
 
 	return false
 }

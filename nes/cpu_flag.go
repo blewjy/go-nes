@@ -1,65 +1,114 @@
 package nes
 
-// SetC will set the C flag if the given condition is true; unset otherwise.
-func (c *CPU) SetC(condition bool) {
-	if condition {
-		c.c = 1
+// 7  bit  0
+// ---- ----
+// NVUB DIZC
+// |||| ||||
+// |||| |||+- Carry
+// |||| ||+-- Zero
+// |||| |+--- Interrupt Disable
+// |||| +---- Decimal
+// ||++------ No CPU effect, see: the B flag
+// |+-------- Overflow
+// +--------- Negative
+
+type Flag uint8
+
+const (
+	C Flag = 1 << 0
+	Z      = 1 << 1
+	I      = 1 << 2
+	D      = 1 << 3
+	B      = 1 << 4
+	U      = 1 << 5
+	V      = 1 << 6
+	N      = 1 << 7
+)
+
+func (cpu *CPU) GetFlag(flag Flag) uint8 {
+	if cpu.p&uint8(flag) > 0 {
+		return 1
 	} else {
-		c.c = 0
+		return 0
+	}
+}
+
+func (cpu *CPU) SetFlag(flag Flag, set bool) {
+	if set {
+		cpu.p |= uint8(flag)
+	} else {
+		cpu.p &= ^uint8(flag)
+	}
+}
+
+func IsNegative(b uint8) bool {
+	return b&0x80 == 0x80
+}
+
+func IsZero(b uint8) bool {
+	return b == 0
+}
+
+// SetC will set the C flag if the given condition is true; unset otherwise.
+func (cpu *CPU) SetC(condition bool) {
+	if condition {
+		cpu.c = 1
+	} else {
+		cpu.c = 0
 	}
 }
 
 // SetZ will set the Z flag if the given condition is true; unset otherwise.
-func (c *CPU) SetZ(condition bool) {
+func (cpu *CPU) SetZ(condition bool) {
 	if condition {
-		c.z = 1
+		cpu.z = 1
 	} else {
-		c.z = 0
+		cpu.z = 0
 	}
 }
 
-func (c *CPU) SetI(condition bool) {
+func (cpu *CPU) SetI(condition bool) {
 	if condition {
-		c.i = 1
+		cpu.i = 1
 	} else {
-		c.i = 0
+		cpu.i = 0
 	}
 }
 
-func (c *CPU) SetD() {
+func (cpu *CPU) SetD() {
 
 }
 
-func (c *CPU) SetB(condition bool) {
+func (cpu *CPU) SetB(condition bool) {
 	if condition {
-		c.b = 1
+		cpu.b = 1
 	} else {
-		c.b = 0
+		cpu.b = 0
 	}
 }
 
-func (c *CPU) SetU(condition bool) {
+func (cpu *CPU) SetU(condition bool) {
 	if condition {
-		c.u = 1
+		cpu.u = 1
 	} else {
-		c.u = 0
+		cpu.u = 0
 	}
 }
 
 // SetV will set the V flag if the given condition is true; unset otherwise.
-func (c *CPU) SetV(condition bool) {
+func (cpu *CPU) SetV(condition bool) {
 	if condition {
-		c.v = 1
+		cpu.v = 1
 	} else {
-		c.v = 0
+		cpu.v = 0
 	}
 }
 
 // SetN will set the N flag if the given value is negative; unset otherwise
-func (c *CPU) SetN(value uint8) {
+func (cpu *CPU) SetN(value uint8) {
 	if value&0x80 != 0 {
-		c.n = 1
+		cpu.n = 1
 	} else {
-		c.n = 0
+		cpu.n = 0
 	}
 }
