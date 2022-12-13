@@ -814,15 +814,16 @@ func (c *CPU) rts(mode AddressMode, addr uint16) bool {
 //	N Z C I D V
 //	+ + + - - +
 func (c *CPU) sbc(mode AddressMode, addr uint16) bool {
-	A := c.a
-	M := c.Read(addr)
-	C := c.c
-	c.a = A - M - (1 - C)
+	A := uint16(c.a)
+	M := uint16(c.Read(addr)) ^ 0x00FF
+	C := uint16(c.c)
+	temp := A + M + C
+	c.a = uint8(temp)
 
-	c.SetN(c.a)
-	c.SetZ(c.a == 0)
-	c.SetC(uint16(A)-uint16(M)-uint16(1-C) >= 0)
-	c.SetV((A^M)&0x80 != 0 && (A^c.a)&0x80 != 0)
+	c.SetN(uint8(temp))
+	c.SetZ(uint8(temp) == 0)
+	c.SetC(A+M+C > 0xFF)
+	c.SetV((A^M)&0x80 == 0 && (A^temp)&0x80 != 0)
 
 	return true
 }
