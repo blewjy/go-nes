@@ -12,16 +12,6 @@ type CPU struct {
 	sp uint8  // Stack pointer
 	pc uint16 // Program counter
 
-	// Status registers
-	c uint8
-	z uint8
-	i uint8
-	d uint8
-	b uint8
-	u uint8
-	v uint8
-	n uint8
-
 	// cycles???
 	cycle int
 
@@ -58,17 +48,6 @@ func (cpu *CPU) Reset() {
 	cpu.x = 0
 	cpu.y = 0
 	cpu.sp = 0xFD
-
-	// Reset status register
-	cpu.c = 0
-	cpu.z = 0
-	cpu.i = 1
-	cpu.d = 0
-	cpu.b = 0
-	cpu.u = 1
-	cpu.v = 0
-	cpu.n = 0
-
 	cpu.p = 0x24
 
 	// Reset cycle
@@ -129,16 +108,6 @@ func (cpu *CPU) Pull16() uint16 {
 
 func (cpu *CPU) GetStatus() uint8 {
 	return cpu.p
-
-	N := cpu.n << 7
-	V := cpu.v << 6
-	U := cpu.u << 5
-	B := cpu.b << 4
-	D := cpu.d << 3
-	I := cpu.i << 2
-	Z := cpu.z << 1
-	C := cpu.c << 0
-	return N | V | U | B | D | I | Z | C
 }
 
 func (cpu *CPU) PushStatus() {
@@ -146,17 +115,7 @@ func (cpu *CPU) PushStatus() {
 }
 
 func (cpu *CPU) PullStatus() {
-	status := cpu.Pull()
-	cpu.n = status >> 7 & 0x1
-	cpu.v = status >> 6 & 0x1
-	cpu.u = 1
-	cpu.b = 0
-	cpu.d = status >> 3 & 0x1
-	cpu.i = status >> 2 & 0x1
-	cpu.z = status >> 1 & 0x1
-	cpu.c = status >> 0 & 0x1
-
-	cpu.p = status
+	cpu.p = cpu.Pull()
 	cpu.SetFlag(U, true)
 	cpu.SetFlag(B, false)
 }
