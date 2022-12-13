@@ -578,7 +578,7 @@ func (c *CPU) jmp(mode AddressMode, addr uint16) bool {
 //	N Z C I D V
 //	- - - - - -
 func (c *CPU) jsr(mode AddressMode, addr uint16) bool {
-	c.Push16(c.pc + 2)
+	c.Push16(c.pc - 1) // ?!?!
 	c.pc = addr
 
 	return false
