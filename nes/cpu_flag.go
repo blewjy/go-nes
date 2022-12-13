@@ -58,8 +58,8 @@ func (c *CPU) SetV(condition bool) {
 // SetN will set the N flag if the given value is negative; unset otherwise
 func (c *CPU) SetN(value uint8) {
 	if value&0x80 != 0 {
-		c.z = 1
+		c.n = 1
 	} else {
-		c.z = 0
+		c.n = 0
 	}
 }
