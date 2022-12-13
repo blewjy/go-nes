@@ -113,8 +113,7 @@ func (e *Emulator) DrawCpuAt(screen *ebiten.Image, x, y int) {
 	ebitenutil.DebugPrintAt(screen, fmt.Sprintf(" Y: 0x%02X", cpu.Y), x, y+36)
 	ebitenutil.DebugPrintAt(screen, fmt.Sprintf("SP: 0x%04X", cpu.StackPtr), x, y+48)
 	ebitenutil.DebugPrintAt(screen, "STATUS: N V U B D I Z C", x, y+60)
-	ebitenutil.DebugPrintAt(screen, fmt.Sprintf("        %d %d %d %d %d %d %d %d", cpu.P>>7|1, cpu.P>>7|1, cpu.P>>7|1, cpu.P>>7|1, cpu.P>>7|1, cpu.P>>7|1, cpu.P>>7|1, cpu.P>>7|1), x, y+72)
-
+	ebitenutil.DebugPrintAt(screen, fmt.Sprintf("        %d %d %d %d %d %d %d %d", cpu.P>>7&1, cpu.P>>6&1, cpu.P>>5&1, cpu.P>>4&1, cpu.P>>3&1, cpu.P>>2&1, cpu.P>>1&1, cpu.P>>0&1), x, y+72)
 }
 
 func (e *Emulator) DrawRamAt(screen *ebiten.Image, startAddr, rows uint16, x, y int) {

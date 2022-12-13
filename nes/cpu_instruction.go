@@ -164,9 +164,10 @@ func (c *CPU) asl(mode AddressMode, addr uint16) bool {
 func (c *CPU) bcc(mode AddressMode, addr uint16) bool {
 	if c.c == 0 {
 		c.pc = addr
+		return true
 	}
 
-	return true
+	return false
 }
 
 // BCS - Branch on Carry Set
@@ -178,9 +179,10 @@ func (c *CPU) bcc(mode AddressMode, addr uint16) bool {
 func (c *CPU) bcs(mode AddressMode, addr uint16) bool {
 	if c.c == 1 {
 		c.pc = addr
+		return true
 	}
 
-	return true
+	return false
 }
 
 // BEQ - Branch on Result Zero
@@ -192,9 +194,10 @@ func (c *CPU) bcs(mode AddressMode, addr uint16) bool {
 func (c *CPU) beq(mode AddressMode, addr uint16) bool {
 	if c.z == 1 {
 		c.pc = addr
+		return true
 	}
 
-	return true
+	return false
 }
 
 // BIT - Test Bits in Memory with Accumulator
@@ -225,9 +228,10 @@ func (c *CPU) bit(mode AddressMode, addr uint16) bool {
 func (c *CPU) bmi(mode AddressMode, addr uint16) bool {
 	if c.n == 1 {
 		c.pc = addr
+		return true
 	}
 
-	return true
+	return false
 }
 
 // BNE - Branch on Result not Zero
@@ -239,9 +243,10 @@ func (c *CPU) bmi(mode AddressMode, addr uint16) bool {
 func (c *CPU) bne(mode AddressMode, addr uint16) bool {
 	if c.z == 0 {
 		c.pc = addr
+		return true
 	}
 
-	return true
+	return false
 }
 
 // BPL - Branch on Result Plus
@@ -253,9 +258,10 @@ func (c *CPU) bne(mode AddressMode, addr uint16) bool {
 func (c *CPU) bpl(mode AddressMode, addr uint16) bool {
 	if c.n == 0 {
 		c.pc = addr
+		return true
 	}
 
-	return true
+	return false
 }
 
 // BRK - Force Break
@@ -294,9 +300,10 @@ func (c *CPU) brk(mode AddressMode, addr uint16) bool {
 func (c *CPU) bvc(mode AddressMode, addr uint16) bool {
 	if c.v == 0 {
 		c.pc = addr
+		return true
 	}
 
-	return true
+	return false
 }
 
 // BVS - Branch on Overflow Set
@@ -308,9 +315,10 @@ func (c *CPU) bvc(mode AddressMode, addr uint16) bool {
 func (c *CPU) bvs(mode AddressMode, addr uint16) bool {
 	if c.v == 1 {
 		c.pc = addr
+		return true
 	}
 
-	return true
+	return false
 }
 
 // CLC - Clear Carry Flag
