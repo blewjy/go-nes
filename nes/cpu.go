@@ -207,7 +207,7 @@ func (c *CPU) PullStatus() {
 	status := c.Pull()
 	c.n = status >> 7 & 0x1
 	c.v = status >> 6 & 0x1
-	c.u = 0
+	c.u = 1
 	c.b = 0
 	c.d = status >> 3 & 0x1
 	c.i = status >> 2 & 0x1
