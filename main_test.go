@@ -79,7 +79,7 @@ func TestNestest(t *testing.T) {
 	nes := emulator.NewEmulatorWithMode(emulator.Test)
 
 	cpuSnapshot, _ := nes.StartWithNestestROMAsTest()
-	for i := 0; i < 1000; i++ {
+	for i := 0; i < 5003; i++ {
 		fmt.Print(nes.PeekCurrentSnapshot())
 		assert(cpuSnapshot, results[i])
 		fmt.Println("\t\u2713")
