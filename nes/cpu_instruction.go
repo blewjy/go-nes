@@ -693,8 +693,9 @@ func (c *CPU) pha(mode AddressMode, addr uint16) bool {
 //	- - - - - -
 func (c *CPU) php(mode AddressMode, addr uint16) bool {
 	c.SetU(true)
+	c.SetB(true)
 	c.PushStatus()
-	c.SetU(false)
+	c.SetB(false)
 
 	return false
 }
