@@ -70,10 +70,49 @@ func (p *PPU) CpuWrite(addr uint16, data uint8) {
 }
 
 func (p *PPU) PpuRead(addr uint16) uint8 {
-	return 0
+	data, ok := p.Cartridge.PpuRead(addr)
+	if !ok {
+		if addr >= 0x3F00 && addr <= 0x3FFF {
+			addr &= 0x001F
+			if addr == 0x0010 {
+				addr = 0x0000
+			}
+			if addr == 0x0014 {
+				addr = 0x0004
+			}
+			if addr == 0x0018 {
+				addr = 0x0008
+			}
+			if addr == 0x001C {
+				addr = 0x000C
+			}
+			data = p.tablePalette[addr]
+		}
+	}
+	return data
 }
 
-func (p *PPU) PpuWrite(addr uint16, data uint8) {}
+func (p *PPU) PpuWrite(addr uint16, data uint8) {
+	ok := p.Cartridge.PpuWrite(addr, data)
+	if !ok {
+		if addr >= 0x3F00 && addr <= 0x3FFF {
+			addr &= 0x001F
+			if addr == 0x0010 {
+				addr = 0x0000
+			}
+			if addr == 0x0014 {
+				addr = 0x0004
+			}
+			if addr == 0x0018 {
+				addr = 0x0008
+			}
+			if addr == 0x001C {
+				addr = 0x000C
+			}
+			p.tablePalette[addr] = data
+		}
+	}
+}
 
 func (p *PPU) ConnectCartridge(cartridge *Cartridge) {
 	p.Cartridge = cartridge
@@ -104,7 +143,28 @@ func (p *PPU) GetPatternTableDisplay(tableIndex, paletteId int) [128][128]color.
 	for i := 0; i < 128; i++ {
 		display[i] = [128]color.Color{}
 		for j := 0; j < 128; j++ {
-			display[i][j] = p.colorPalette[rand.Intn(64)]
+			tileX := j / 8
+			tileY := i / 8
+			tileByteOffset := uint16(tileX*16 + tileY*256)
+			pixelX := j % 8
+			pixelY := i % 8
+			lsbPixelByteOffset := tileByteOffset + uint16(pixelY)
+			msbPixelByteOffset := tileByteOffset + uint16(pixelY) + 8
+
+			lsbPixelByte := p.PpuRead(0x1000*uint16(tableIndex) + lsbPixelByteOffset)
+			msbPixelByte := p.PpuRead(0x1000*uint16(tableIndex) + msbPixelByteOffset)
+
+			lsbPixelBit := (lsbPixelByte >> (7 - pixelX)) & 1
+			msbPixelBit := (msbPixelByte >> (7 - pixelX)) & 1
+
+			pixelBits := msbPixelBit<<1 | lsbPixelBit
+
+			paletteByteOffset := 0x3F00 + uint16(paletteId)<<2 + uint16(pixelBits)
+
+			colorIndex := p.PpuRead(paletteByteOffset)
+			colorIndex = pixelBits * 21
+
+			display[i][j] = p.colorPalette[colorIndex]
 		}
 	}
 	return display
