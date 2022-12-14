@@ -8,7 +8,8 @@ import (
 type PPU struct {
 	Cartridge *Cartridge
 
-	// PPU bus devices
+	// PPU stuff
+	tablePattern [2][4096]uint8
 	tableName    [2][1024]uint8
 	tablePalette [32]uint8
 

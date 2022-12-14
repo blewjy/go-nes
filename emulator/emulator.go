@@ -2,12 +2,12 @@ package emulator
 
 import (
 	"fmt"
-	"github.com/hajimehoshi/ebiten/v2"
-	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
 	"go-nes/nes"
-	"image"
 	"image/color"
 	"log"
+
+	"github.com/hajimehoshi/ebiten/v2"
+	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
 )
 
 const (
@@ -127,15 +127,25 @@ func (e *Emulator) Draw(screen *ebiten.Image) {
 
 func (e *Emulator) DrawScreenAt(screen *ebiten.Image, x, y int) {
 	vmScreen := e.VM.GetScreen()
-	op := &ebiten.DrawImageOptions{}
-	op.GeoM.Scale(256, 240)
-	op.GeoM.Translate(8, 8)
-	op.ColorM.ScaleWithColor(vmScreen[0][0])
+
+	var pixels []byte
 	for px := 0; px < 256; px++ {
 		for py := 0; py < 240; py++ {
+			r, g, b, a := vmScreen[px][py].RGBA()
+			pixels = append(pixels, uint8(r))
+			pixels = append(pixels, uint8(g))
+			pixels = append(pixels, uint8(b))
+			pixels = append(pixels, uint8(a))
 		}
 	}
-	screen.DrawImage(emptyImage.SubImage(image.Rect(1, 1, 2, 2)).(*ebiten.Image), op)
+
+	img := ebiten.NewImage(256, 240)
+	img.WritePixels(pixels)
+
+	op := &ebiten.DrawImageOptions{}
+	op.GeoM.Translate(8, 8)
+
+	screen.DrawImage(img, op)
 }
 
 func (e *Emulator) DrawCpuAt(screen *ebiten.Image, x, y int) {
