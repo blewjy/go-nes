@@ -63,6 +63,10 @@ func (v *VM) GetScreen() [256][240]color.Color {
 	return v.bus.PPU.GetScreen()
 }
 
+func (v *VM) GetPatternTableDisplay(tableIndex, paletteId int) [128][128]color.Color {
+	return v.bus.PPU.GetPatternTableDisplay(tableIndex, paletteId)
+}
+
 /** For debugging purposes only **/
 
 // PeekCPUResult is a struct containing all registers of the CPU.

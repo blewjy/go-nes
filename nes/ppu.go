@@ -98,3 +98,14 @@ func (p *PPU) Clock() {
 		}
 	}
 }
+
+func (p *PPU) GetPatternTableDisplay(tableIndex, paletteId int) [128][128]color.Color {
+	display := [128][128]color.Color{}
+	for i := 0; i < 128; i++ {
+		display[i] = [128]color.Color{}
+		for j := 0; j < 128; j++ {
+			display[i][j] = p.colorPalette[rand.Intn(64)]
+		}
+	}
+	return display
+}

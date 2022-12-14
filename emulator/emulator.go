@@ -3,7 +3,6 @@ package emulator
 import (
 	"fmt"
 	"go-nes/nes"
-	"image/color"
 	"log"
 
 	"github.com/hajimehoshi/ebiten/v2"
@@ -19,13 +18,9 @@ const (
 )
 
 var (
-	// For drawing
-	emptyImage = ebiten.NewImage(3, 3)
+	screenImage       = ebiten.NewImage(256, 240)
+	patternTableImage = ebiten.NewImage(128, 128)
 )
-
-func init() {
-	emptyImage.Fill(color.White)
-}
 
 type Mode string
 
@@ -121,8 +116,50 @@ func (e *Emulator) Update() error {
 func (e *Emulator) Draw(screen *ebiten.Image) {
 	e.DrawScreenAt(screen, 8, 8)
 	e.DrawCpuAt(screen, 272, 4)
-	e.DrawRamAt(screen, 0x0000, 10, 272, 94)
-	e.DrawStateAt(screen, 272, 226)
+	e.DrawStateAt(screen, 384, 4)
+	e.DrawPatternTableAt(screen, 272, 112)
+	//e.DrawRamAt(screen, 0x0000, 10, 272, 94)
+}
+
+func (e *Emulator) DrawPatternTableAt(screen *ebiten.Image, x, y int) {
+	display := e.VM.GetPatternTableDisplay(0, 0)
+
+	var pixels []byte
+	for px := 0; px < 128; px++ {
+		for py := 0; py < 128; py++ {
+			r, g, b, a := display[px][py].RGBA()
+			pixels = append(pixels, uint8(r))
+			pixels = append(pixels, uint8(g))
+			pixels = append(pixels, uint8(b))
+			pixels = append(pixels, uint8(a))
+		}
+	}
+
+	patternTableImage.WritePixels(pixels)
+
+	op := &ebiten.DrawImageOptions{}
+	op.GeoM.Translate(float64(x), float64(y))
+
+	screen.DrawImage(patternTableImage, op)
+
+	display2 := e.VM.GetPatternTableDisplay(1, 0)
+
+	var pixels2 []byte
+	for px := 0; px < 128; px++ {
+		for py := 0; py < 128; py++ {
+			r, g, b, a := display2[px][py].RGBA()
+			pixels2 = append(pixels2, uint8(r))
+			pixels2 = append(pixels2, uint8(g))
+			pixels2 = append(pixels2, uint8(b))
+			pixels2 = append(pixels2, uint8(a))
+		}
+	}
+
+	patternTableImage.WritePixels(pixels2)
+
+	op.GeoM.Translate(132, 0)
+
+	screen.DrawImage(patternTableImage, op)
 }
 
 func (e *Emulator) DrawScreenAt(screen *ebiten.Image, x, y int) {
@@ -139,13 +176,12 @@ func (e *Emulator) DrawScreenAt(screen *ebiten.Image, x, y int) {
 		}
 	}
 
-	img := ebiten.NewImage(256, 240)
-	img.WritePixels(pixels)
+	screenImage.WritePixels(pixels)
 
 	op := &ebiten.DrawImageOptions{}
-	op.GeoM.Translate(8, 8)
+	op.GeoM.Translate(float64(x), float64(y))
 
-	screen.DrawImage(img, op)
+	screen.DrawImage(screenImage, op)
 }
 
 func (e *Emulator) DrawCpuAt(screen *ebiten.Image, x, y int) {
