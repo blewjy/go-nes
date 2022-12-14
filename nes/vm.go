@@ -2,6 +2,7 @@ package nes
 
 import (
 	"encoding/hex"
+	"image/color"
 )
 
 type VM struct {
@@ -17,7 +18,6 @@ func NewVM() *VM {
 func (v *VM) ForceSetResetVector(resetVector uint16) {
 	v.bus.CpuWrite(0xFFFC, uint8(resetVector))
 	v.bus.CpuWrite(0xFFFD, uint8(resetVector>>8))
-	v.bus.Reset()
 }
 
 func (v *VM) LoadROM(filePath string) {
@@ -42,9 +42,25 @@ func (v *VM) LoadProgramAsString(program string, resetVector uint16) {
 	v.bus.Reset()
 }
 
+func (v *VM) Reset() {
+	v.bus.Reset()
+}
+
 // Step will clock the bus once.
 func (v *VM) Step() {
 	v.bus.Clock()
+}
+
+// StepFrame will clock the bus until 1 frame is complete
+func (v *VM) StepFrame() {
+	for !v.bus.PPU.frameComplete {
+		v.bus.Clock()
+	}
+	v.bus.PPU.frameComplete = false
+}
+
+func (v *VM) GetScreen() [256][240]color.Color {
+	return v.bus.PPU.GetScreen()
 }
 
 /** For debugging purposes only **/

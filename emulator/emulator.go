@@ -2,18 +2,30 @@ package emulator
 
 import (
 	"fmt"
-	"go-nes/nes"
-	"log"
-
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
+	"go-nes/nes"
+	"image"
+	"image/color"
+	"log"
 )
 
 const (
-	windowWidth  = 1024
-	windowHeight = 960
+	windowWidth  = 1664
+	windowHeight = 768
 	windowScale  = 3
+
+	cpuClockSpeed = 1789773
 )
+
+var (
+	// For drawing
+	emptyImage = ebiten.NewImage(3, 3)
+)
+
+func init() {
+	emptyImage.Fill(color.White)
+}
 
 type Mode string
 
@@ -64,13 +76,16 @@ func NewEmulatorWithMode(mode Mode) *Emulator {
 
 // Update will run at exactly 60Hz
 func (e *Emulator) Update() error {
+	ebiten.SetWindowTitle(fmt.Sprintf("NES Emulator in Go! TPS: %v FPS: %v", ebiten.ActualTPS(), ebiten.ActualFPS()))
 	switch e.State {
 	case Init:
 		if ebiten.IsKeyPressed(ebiten.KeyEnter) {
 			e.State = Stepping
 		}
 	case Running:
-		e.VM.Step()
+		for i := 0; i < cpuClockSpeed/60; i++ {
+			e.VM.Step()
+		}
 
 		if ebiten.IsKeyPressed(ebiten.KeyP) {
 			e.State = Paused
@@ -83,7 +98,11 @@ func (e *Emulator) Update() error {
 			e.IsKeyPressed = true
 			e.VM.Step()
 		}
-		if !ebiten.IsKeyPressed(ebiten.KeySpace) {
+		if !e.IsKeyPressed && ebiten.IsKeyPressed(ebiten.KeyF) {
+			e.IsKeyPressed = true
+			e.VM.StepFrame()
+		}
+		if !ebiten.IsKeyPressed(ebiten.KeySpace) && !ebiten.IsKeyPressed(ebiten.KeyF) {
 			e.IsKeyPressed = false
 		}
 		if ebiten.IsKeyPressed(ebiten.KeyF2) {
@@ -100,9 +119,23 @@ func (e *Emulator) Update() error {
 }
 
 func (e *Emulator) Draw(screen *ebiten.Image) {
-	e.DrawCpuAt(screen, 0, 0)
-	e.DrawRamAt(screen, 0x0000, 10, 0, 108)
-	e.DrawStateAt(screen, 0, 252)
+	e.DrawScreenAt(screen, 8, 8)
+	e.DrawCpuAt(screen, 272, 4)
+	e.DrawRamAt(screen, 0x0000, 10, 272, 94)
+	e.DrawStateAt(screen, 272, 226)
+}
+
+func (e *Emulator) DrawScreenAt(screen *ebiten.Image, x, y int) {
+	vmScreen := e.VM.GetScreen()
+	op := &ebiten.DrawImageOptions{}
+	op.GeoM.Scale(256, 240)
+	op.GeoM.Translate(8, 8)
+	op.ColorM.ScaleWithColor(vmScreen[0][0])
+	for px := 0; px < 256; px++ {
+		for py := 0; py < 240; py++ {
+		}
+	}
+	screen.DrawImage(emptyImage.SubImage(image.Rect(1, 1, 2, 2)).(*ebiten.Image), op)
 }
 
 func (e *Emulator) DrawCpuAt(screen *ebiten.Image, x, y int) {
@@ -149,6 +182,7 @@ func (e *Emulator) StartWithROM(filePath string) {
 	if e.Mode == Automation {
 		e.VM.ForceSetResetVector(0xC000)
 	}
+	e.VM.Reset()
 	e.Start()
 }
 

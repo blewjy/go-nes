@@ -8,7 +8,7 @@ type Bus struct {
 	Cartridge *Cartridge
 
 	// Internal
-	clockCounter uint64
+	clockCounter uint64 // CPU only
 }
 
 func NewBus() *Bus {
@@ -26,6 +26,9 @@ func (b *Bus) Reset() {
 }
 
 func (b *Bus) Clock() {
+	b.PPU.Clock()
+	b.PPU.Clock()
+	b.PPU.Clock()
 	b.CPU.Clock()
 	b.clockCounter++
 }
