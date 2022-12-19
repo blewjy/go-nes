@@ -20,6 +20,8 @@ const (
 var (
 	screenImage       = ebiten.NewImage(256, 240)
 	patternTableImage = ebiten.NewImage(128, 128)
+
+	debugPatternId = 0
 )
 
 type Mode string
@@ -88,6 +90,21 @@ func (e *Emulator) Update() error {
 		if ebiten.IsKeyPressed(ebiten.KeyF1) {
 			e.State = Stepping
 		}
+
+		if !e.IsKeyPressed && ebiten.IsKeyPressed(ebiten.KeyRight) {
+			e.IsKeyPressed = true
+			debugPatternId = (debugPatternId + 1) % 28
+			fmt.Println("debugPatternId", debugPatternId)
+		}
+		if !e.IsKeyPressed && ebiten.IsKeyPressed(ebiten.KeyLeft) {
+			e.IsKeyPressed = true
+			debugPatternId = (debugPatternId - 1) % 28
+			fmt.Println("debugPatternId", debugPatternId)
+		}
+
+		if !ebiten.IsKeyPressed(ebiten.KeyRight) && !ebiten.IsKeyPressed(ebiten.KeyLeft) {
+			e.IsKeyPressed = false
+		}
 	case Stepping:
 		if !e.IsKeyPressed && ebiten.IsKeyPressed(ebiten.KeySpace) {
 			e.IsKeyPressed = true
@@ -122,7 +139,7 @@ func (e *Emulator) Draw(screen *ebiten.Image) {
 }
 
 func (e *Emulator) DrawPatternTableAt(screen *ebiten.Image, x, y int) {
-	display := e.VM.GetPatternTableDisplay(0, 0)
+	display := e.VM.GetPatternTableDisplay(0, debugPatternId)
 
 	var pixels []byte
 	for px := 0; px < 128; px++ {
@@ -142,7 +159,7 @@ func (e *Emulator) DrawPatternTableAt(screen *ebiten.Image, x, y int) {
 
 	screen.DrawImage(patternTableImage, op)
 
-	display2 := e.VM.GetPatternTableDisplay(1, 0)
+	display2 := e.VM.GetPatternTableDisplay(1, debugPatternId)
 
 	var pixels2 []byte
 	for px := 0; px < 128; px++ {
