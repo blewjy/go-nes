@@ -3,6 +3,7 @@ package emulator
 import (
 	"fmt"
 	"go-nes/nes"
+	"image/color"
 	"log"
 
 	"github.com/hajimehoshi/ebiten/v2"
@@ -10,16 +11,17 @@ import (
 )
 
 const (
-	windowWidth  = 1664
-	windowHeight = 768
+	windowWidth  = 1280
+	windowHeight = 1180
 	windowScale  = 3
 
 	cpuClockSpeed = 1789773
 )
 
 var (
-	screenImage       = ebiten.NewImage(256, 240)
-	patternTableImage = ebiten.NewImage(128, 128)
+	screenImage               = ebiten.NewImage(256, 240)
+	patternTableImage         = ebiten.NewImage(128, 128)
+	disassemblyHighlightImage = ebiten.NewImage(144, 12)
 
 	debugPatternId = 0
 )
@@ -51,6 +53,9 @@ type Emulator struct {
 
 	// Debugging controls
 	IsKeyPressed bool
+
+	// Debugging info
+	Disassembly map[uint16]string
 }
 
 func NewEmulator() *Emulator {
@@ -132,10 +137,49 @@ func (e *Emulator) Update() error {
 
 func (e *Emulator) Draw(screen *ebiten.Image) {
 	e.DrawScreenAt(screen, 8, 8)
-	e.DrawCpuAt(screen, 272, 4)
-	e.DrawStateAt(screen, 384, 4)
-	e.DrawPatternTableAt(screen, 272, 112)
-	//e.DrawRamAt(screen, 0x0000, 10, 272, 94)
+	e.DrawPatternTableAt(screen, 8, 256)
+	e.DrawStateAt(screen, 272, 8)
+	e.DrawCpuAt(screen, 272, 36)
+	e.DrawDisassemblyAt(screen, 272, 128)
+}
+
+func (e *Emulator) DrawDisassemblyAt(screen *ebiten.Image, x, y int) {
+	cpu := e.VM.PeekCPU()
+
+	ebitenutil.DebugPrintAt(screen, "Disassembly:", x, y)
+
+	yOffset := 10
+
+	// print middle
+	op := &ebiten.DrawImageOptions{}
+	op.GeoM.Translate(float64(x), float64(y+yOffset*12+2+4))
+	screen.DrawImage(disassemblyHighlightImage, op)
+	ebitenutil.DebugPrintAt(screen, fmt.Sprintf("0x%04X: %s", cpu.PC, e.Disassembly[cpu.PC]), x, y+yOffset*12+4)
+
+	// move up
+	for i, o := 0, uint16(1); i < yOffset-1; i, o = i+1, o+1 {
+		for {
+			if _, ok := e.Disassembly[cpu.PC-o]; !ok {
+				o++
+			} else {
+				break
+			}
+		}
+		ebitenutil.DebugPrintAt(screen, fmt.Sprintf("0x%04X: %s", cpu.PC-o, e.Disassembly[cpu.PC-o]), x, y+(yOffset-1-i)*12+4)
+	}
+
+	// move down
+	for i, o := 0, uint16(1); i < yOffset-1; i, o = i+1, o+1 {
+		for {
+			if _, ok := e.Disassembly[cpu.PC+o]; !ok {
+				o++
+			} else {
+				break
+			}
+		}
+		ebitenutil.DebugPrintAt(screen, fmt.Sprintf("0x%04X: %s", cpu.PC+o, e.Disassembly[cpu.PC+o]), x, y+(yOffset+1+i)*12+4)
+	}
+
 }
 
 func (e *Emulator) DrawPatternTableAt(screen *ebiten.Image, x, y int) {
@@ -174,7 +218,7 @@ func (e *Emulator) DrawPatternTableAt(screen *ebiten.Image, x, y int) {
 
 	patternTableImage.WritePixels(pixels2)
 
-	op.GeoM.Translate(132, 0)
+	op.GeoM.Translate(128, 0)
 
 	screen.DrawImage(patternTableImage, op)
 }
@@ -235,6 +279,15 @@ func (e *Emulator) Layout(outsideWidth, outsideHeight int) (screenWidth, screenH
 func (e *Emulator) Start() {
 	ebiten.SetWindowTitle("NES Emulator in Go!")
 	ebiten.SetWindowSize(windowWidth, windowHeight)
+
+	e.Disassembly = e.VM.PeekDisassembly()
+	disassemblyHighlightImage.Fill(color.RGBA{
+		R: 0,
+		G: 20,
+		B: 100,
+		A: 255,
+	})
+
 	if err := ebiten.RunGame(e); err != nil {
 		log.Fatal(err)
 	}

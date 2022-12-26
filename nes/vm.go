@@ -108,3 +108,7 @@ func (v *VM) PeekRAM(start, end uint16) []byte {
 func (v *VM) PeekCPUSnapshot() string {
 	return v.bus.CPU.PeekCurrentSnapshot()
 }
+
+func (v *VM) PeekDisassembly() map[uint16]string {
+	return v.bus.CPU.PeekDisassembly()
+}

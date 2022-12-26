@@ -1,6 +1,9 @@
 package nes
 
-import "fmt"
+import (
+	"fmt"
+	"math"
+)
 
 type CPU struct {
 	bus *Bus
@@ -137,6 +140,46 @@ func (cpu *CPU) PeekCurrentSnapshot() string {
 	result += fmt.Sprint("\tCYC: ", cpu.cycle)
 
 	return result
+}
+
+func (cpu *CPU) PeekDisassembly() map[uint16]string {
+	disassembly := map[uint16]string{}
+
+	currentAddr := uint16(0)
+	prevAddr := uint16(0)
+
+	for currentAddr >= prevAddr {
+		prevAddr = currentAddr
+
+		opcode := cpu.Read(currentAddr)
+		info := cpu.table[opcode]
+
+		instruction := info.inst.ToString()
+
+		switch info.instSize {
+		case 0:
+			// do nothing
+		case 1:
+			// do nothing, inst already added to string
+		case 2:
+			// 1 operand
+			instruction += fmt.Sprintf(" %02X", cpu.Read(currentAddr+1))
+		case 3:
+			// 2 operand
+			instruction += fmt.Sprintf(" %02X", cpu.Read(currentAddr+1)) + fmt.Sprintf(" %02X", cpu.Read(currentAddr+2))
+		default:
+			panic("unexpected instruction size")
+		}
+
+		instruction += " (" + info.addrMode.ToString() + ")"
+
+		disassembly[currentAddr] = instruction
+
+		currentAddr += uint16(math.Max(float64(info.instSize), 1))
+
+	}
+
+	return disassembly
 }
 
 func (cpu *CPU) GetAdditionalCycles(info OpcodeInfo, addrInfo AddressInfo) int {

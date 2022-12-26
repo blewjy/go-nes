@@ -21,6 +21,40 @@ const (
 	modeZpgY
 )
 
+func (am AddressMode) ToString() string {
+	switch am {
+	case modeNone:
+		return "---"
+	case modeAccu:
+		return "A"
+	case modeAbso:
+		return "abs"
+	case modeAbsX:
+		return "abs,X"
+	case modeAbsY:
+		return "abs,Y"
+	case modeImmd:
+		return "#"
+	case modeImpl:
+		return "impl"
+	case modeIndi:
+		return "ind"
+	case modeXInd:
+		return "X,ind"
+	case modeIndY:
+		return "ind,Y"
+	case modeRela:
+		return "rel"
+	case modeZpag:
+		return "zpg"
+	case modeZpgX:
+		return "zpg,X"
+	case modeZpgY:
+		return "zpg,Y"
+	}
+	return ""
+}
+
 type AddressInfo struct {
 	mode    AddressMode
 	address uint16
