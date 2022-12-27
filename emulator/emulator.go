@@ -12,7 +12,7 @@ import (
 
 const (
 	windowWidth  = 1280
-	windowHeight = 1180
+	windowHeight = 1240
 	windowScale  = 3
 
 	cpuClockSpeed = 1789773
@@ -20,6 +20,8 @@ const (
 
 var (
 	screenImage               = ebiten.NewImage(256, 240)
+	paletteTableImage         = ebiten.NewImage(256, 8)
+	paletteSelectedBoxImage   = ebiten.NewImage(32, 8)
 	patternTableImage         = ebiten.NewImage(128, 128)
 	disassemblyHighlightImage = ebiten.NewImage(144, 12)
 
@@ -104,6 +106,9 @@ func (e *Emulator) Update() error {
 		if !e.IsKeyPressed && ebiten.IsKeyPressed(ebiten.KeyLeft) {
 			e.IsKeyPressed = true
 			debugPatternId = (debugPatternId - 1) % 28
+			if debugPatternId < 0 {
+				debugPatternId = 27
+			}
 			fmt.Println("debugPatternId", debugPatternId)
 		}
 
@@ -137,7 +142,8 @@ func (e *Emulator) Update() error {
 
 func (e *Emulator) Draw(screen *ebiten.Image) {
 	e.DrawScreenAt(screen, 8, 8)
-	e.DrawPatternTableAt(screen, 8, 256)
+	e.DrawPaletteTableAt(screen, 8, 256)
+	e.DrawPatternTableAt(screen, 8, 272)
 	e.DrawStateAt(screen, 272, 8)
 	e.DrawCpuAt(screen, 272, 36)
 	e.DrawDisassemblyAt(screen, 272, 128)
@@ -180,6 +186,34 @@ func (e *Emulator) DrawDisassemblyAt(screen *ebiten.Image, x, y int) {
 		ebitenutil.DebugPrintAt(screen, fmt.Sprintf("0x%04X: %s", cpu.PC+o, e.Disassembly[cpu.PC+o]), x, y+(yOffset+1+i)*12+4)
 	}
 
+}
+
+func (e *Emulator) DrawPaletteTableAt(screen *ebiten.Image, x, y int) {
+	display := e.VM.GetPaletteDisplay()
+
+	var pixels []byte
+	for row := 0; row < 8; row++ {
+		for p := 0; p < 32; p++ {
+			for col := 0; col < 8; col++ {
+				r, g, b, a := display[p].RGBA()
+				pixels = append(pixels, uint8(r))
+				pixels = append(pixels, uint8(g))
+				pixels = append(pixels, uint8(b))
+				pixels = append(pixels, uint8(a))
+			}
+		}
+	}
+
+	paletteTableImage.WritePixels(pixels)
+
+	op := &ebiten.DrawImageOptions{}
+	op.GeoM.Translate(float64(x), float64(y))
+
+	screen.DrawImage(paletteTableImage, op)
+
+	op.GeoM.Translate(float64(debugPatternId)*32, 0)
+
+	screen.DrawImage(paletteSelectedBoxImage, op)
 }
 
 func (e *Emulator) DrawPatternTableAt(screen *ebiten.Image, x, y int) {
@@ -287,6 +321,14 @@ func (e *Emulator) Start() {
 		B: 100,
 		A: 255,
 	})
+
+	for px := 0; px < 32; px++ {
+		for py := 0; py < 8; py++ {
+			if px == 0 || px == 31 || py == 0 || py == 7 {
+				paletteSelectedBoxImage.Set(px, py, color.White)
+			}
+		}
+	}
 
 	if err := ebiten.RunGame(e); err != nil {
 		log.Fatal(err)

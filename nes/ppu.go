@@ -168,7 +168,17 @@ func (p *PPU) CpuWrite(addr uint16, data uint8) {
 func (p *PPU) PpuRead(addr uint16) uint8 {
 	data, ok := p.Cartridge.PpuRead(addr)
 	if !ok {
-		if addr >= 0x3F00 && addr <= 0x3FFF {
+		if addr <= 0x0FFF {
+			// pattern table 0
+			index := addr & 0x0FFF
+			data = p.tablePattern[0][index]
+
+		} else if addr >= 0x1000 && addr <= 0x1FFF {
+			// pattern table 1
+			index := addr & 0x0FFF
+			data = p.tablePattern[1][index]
+
+		} else if addr >= 0x3F00 && addr <= 0x3FFF {
 			addr &= 0x001F
 			if addr == 0x0010 {
 				addr = 0x0000
@@ -191,7 +201,17 @@ func (p *PPU) PpuRead(addr uint16) uint8 {
 func (p *PPU) PpuWrite(addr uint16, data uint8) {
 	ok := p.Cartridge.PpuWrite(addr, data)
 	if !ok {
-		if addr >= 0x3F00 && addr <= 0x3FFF {
+		if addr <= 0x0FFF {
+			// pattern table 0
+			index := addr & 0x0FFF
+			p.tablePattern[0][index] = data
+
+		} else if addr >= 0x1000 && addr <= 0x1FFF {
+			// pattern table 1
+			index := addr & 0x0FFF
+			p.tablePattern[1][index] = data
+
+		} else if addr >= 0x3F00 && addr <= 0x3FFF {
 			addr &= 0x001F
 			if addr == 0x0010 {
 				addr = 0x0000
@@ -262,5 +282,20 @@ func (p *PPU) GetPatternTableDisplay(tableIndex, paletteId int) [128][128]color.
 			display[i][j] = p.colorPalette[colorIndex]
 		}
 	}
+	return display
+}
+
+func (p *PPU) GetPaletteDisplay() [32]color.Color {
+	display := [32]color.Color{}
+
+	for paletteId := 0; paletteId < 8; paletteId++ {
+		for pixel := 0; pixel < 4; pixel++ {
+			paletteByteOffset := 0x3F00 + (uint16(paletteId)<<2+uint16(pixel))&0x3F
+			colorIndex := p.PpuRead(paletteByteOffset)
+
+			display[paletteId*4+pixel] = p.colorPalette[colorIndex]
+		}
+	}
+
 	return display
 }
