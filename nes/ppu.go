@@ -45,7 +45,6 @@ package nes
 
 import (
 	"image/color"
-	"math/rand"
 )
 
 type PPU struct {
@@ -129,9 +128,12 @@ func (p *PPU) CpuRead(addr uint16) uint8 {
 			data = p.ppuDataBuffer
 		}
 
-		// auto-increment
-		p.ppuAddress++
-
+		// auto-increment based on ctrl address increment flag
+		if p.ppuCtrl&0x04 > 0 {
+			p.ppuAddress += 32
+		} else {
+			p.ppuAddress += 1
+		}
 	}
 
 	return data
@@ -159,8 +161,12 @@ func (p *PPU) CpuWrite(addr uint16, data uint8) {
 	case 0x0007: // PPU Data
 		p.PpuWrite(p.ppuAddress, data)
 
-		// auto-increment
-		p.ppuAddress++
+		// auto-increment based on ctrl address increment flag
+		if p.ppuCtrl&0x04 > 0 {
+			p.ppuAddress += 32
+		} else {
+			p.ppuAddress += 1
+		}
 	}
 }
 
@@ -176,6 +182,10 @@ func (p *PPU) PpuRead(addr uint16) uint8 {
 			// pattern table 1
 			index := addr & 0x0FFF
 			data = p.tablePattern[1][index]
+
+		} else if addr >= 0x2000 && addr <= 0x3EFF {
+			// name tables
+			data = p.tableName[0][addr&0x03FF]
 
 		} else if addr >= 0x3F00 && addr <= 0x3FFF {
 			addr &= 0x001F
@@ -209,6 +219,10 @@ func (p *PPU) PpuWrite(addr uint16, data uint8) {
 			// pattern table 1
 			index := addr & 0x0FFF
 			p.tablePattern[1][index] = data
+
+		} else if addr >= 0x2000 && addr <= 0x3EFF {
+			// name tables
+			p.tableName[0][addr&0x03FF] = data
 
 		} else if addr >= 0x3F00 && addr <= 0x3FFF {
 			addr &= 0x001F
@@ -256,7 +270,11 @@ func (p *PPU) Clock() {
 
 	// At each clock of the PPU, we will render a pixel to the screen at the current scanline and cycle.
 	// Cycle is like the X coordinate and scanline is like the Y coordinate
-	p.screen[p.cycle%256][p.scanline%240] = p.colorPalette[rand.Intn(64)]
+	//if p.scanline < 240 && p.cycle < 256 {
+	//	x := p.cycle / 8
+	//	y := p.scanline / 8
+	//	p.screen[x][y] = p.colorPalette[(p.tableName[0][x+y*32])%0x40]
+	//}
 
 	p.cycle++
 	if p.cycle >= 341 {

@@ -63,6 +63,10 @@ func (v *VM) GetScreen() [256][240]color.Color {
 	return v.bus.PPU.GetScreen()
 }
 
+func (v *VM) GetPPUNametable() [1024]uint8 {
+	return v.bus.PPU.tableName[0]
+}
+
 func (v *VM) GetPatternTableDisplay(tableIndex, paletteId int) [128][128]color.Color {
 	return v.bus.PPU.GetPatternTableDisplay(tableIndex, paletteId)
 }
