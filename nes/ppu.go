@@ -73,6 +73,7 @@ type PPU struct {
 	addressLatch  uint8
 	ppuDataBuffer uint8
 	ppuAddress    uint16
+	nmi           bool
 
 	// ???
 	scanline      int
@@ -107,8 +108,6 @@ func (p *PPU) CpuRead(addr uint16) uint8 {
 	case 0x0000: // Control
 	case 0x0001: // Mask
 	case 0x0002: // Status
-		p.ppuStatus |= 0x80 // temporary hack
-
 		data = (p.ppuStatus & 0xE0) | (p.ppuDataBuffer & 0x1F) // quirk
 
 		// reset vertical blank
@@ -239,6 +238,22 @@ func (p *PPU) GetScreen() [256][240]color.Color {
 }
 
 func (p *PPU) Clock() {
+
+	if p.scanline == 0 && p.cycle == 1 {
+		// set vertical blank
+		p.ppuStatus &= 0x7F
+	}
+
+	if p.scanline == 241 && p.cycle == 1 {
+		// set vertical blank
+		p.ppuStatus |= 0x80
+
+		// emit nmi if needed
+		if p.ppuCtrl&0x80 > 0 {
+			p.nmi = true
+		}
+	}
+
 	// At each clock of the PPU, we will render a pixel to the screen at the current scanline and cycle.
 	// Cycle is like the X coordinate and scanline is like the Y coordinate
 	p.screen[p.cycle%256][p.scanline%240] = p.colorPalette[rand.Intn(64)]

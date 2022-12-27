@@ -30,6 +30,12 @@ func (b *Bus) Clock() {
 	b.PPU.Clock()
 	b.PPU.Clock()
 	b.CPU.Clock()
+
+	if b.PPU.nmi {
+		b.PPU.nmi = false
+		b.CPU.nmi()
+	}
+
 	b.clockCounter++
 }
 

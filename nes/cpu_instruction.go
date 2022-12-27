@@ -1093,3 +1093,13 @@ func (cpu *CPU) tya(mode AddressMode, addr uint16) bool {
 
 	return false
 }
+
+// Non-maskable interrupt
+func (cpu *CPU) nmi() {
+	cpu.SetFlag(I, true)
+	cpu.Push16(cpu.pc)
+	cpu.SetFlag(B, true)
+	cpu.PushStatus()
+	cpu.SetFlag(B, false)
+	cpu.pc = cpu.Read16(0xFFFE)
+}
