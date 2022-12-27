@@ -27,6 +27,7 @@ func (e *Emulator) StartWithNestestROMAsTest() (nes.PeekCPUResult, []byte) {
 
 	e.VM.LoadROM("roms/nestest.nes")
 	e.VM.ForceSetResetVector(0xC000)
+	e.VM.Reset()
 
 	return e.VM.PeekCPU(), e.VM.PeekRAM(0x0000, 0x07FF)
 }
