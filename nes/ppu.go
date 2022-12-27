@@ -56,14 +56,14 @@ type PPU struct {
 	tablePalette [32]uint8
 
 	// PPU registers
-	ppuCtrl   uint8 // 0x2000
-	ppuMask   uint8 // 0x2001
-	ppuStatus uint8 // 0x2002
-	oamAddr   uint8 // 0x2003
-	oamData   uint8 // 0x2004
-	ppuScroll uint8 // 0x2005
-	ppuAddr   uint8 // 0x2006
-	ppuData   uint8 // 0x2007
+	ppuCtrl   PpuCtrl // 0x2000
+	ppuMask   uint8   // 0x2001
+	ppuStatus uint8   // 0x2002
+	oamAddr   uint8   // 0x2003
+	oamData   uint8   // 0x2004
+	ppuScroll uint8   // 0x2005
+	ppuAddr   uint8   // 0x2006
+	ppuData   uint8   // 0x2007
 
 	// ???
 	oamDma uint8 // 0x4014
@@ -129,7 +129,7 @@ func (p *PPU) CpuRead(addr uint16) uint8 {
 		}
 
 		// auto-increment based on ctrl address increment flag
-		if p.ppuCtrl&0x04 > 0 {
+		if p.ppuCtrl.GetVramAddrIncrement() == 1 {
 			p.ppuAddress += 32
 		} else {
 			p.ppuAddress += 1
@@ -142,7 +142,7 @@ func (p *PPU) CpuRead(addr uint16) uint8 {
 func (p *PPU) CpuWrite(addr uint16, data uint8) {
 	switch addr {
 	case 0x0000: // Control
-		p.ppuCtrl = data
+		p.ppuCtrl = PpuCtrl(data)
 	case 0x0001: // Mask
 		p.ppuMask = data
 	case 0x0002: // Status
@@ -162,7 +162,7 @@ func (p *PPU) CpuWrite(addr uint16, data uint8) {
 		p.PpuWrite(p.ppuAddress, data)
 
 		// auto-increment based on ctrl address increment flag
-		if p.ppuCtrl&0x04 > 0 {
+		if p.ppuCtrl.GetVramAddrIncrement() == 1 {
 			p.ppuAddress += 32
 		} else {
 			p.ppuAddress += 1
@@ -263,7 +263,7 @@ func (p *PPU) Clock() {
 		p.ppuStatus |= 0x80
 
 		// emit nmi if needed
-		if p.ppuCtrl&0x80 > 0 {
+		if p.ppuCtrl.GetNmiIndicator() == 1 {
 			p.nmi = true
 		}
 	}
