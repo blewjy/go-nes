@@ -100,14 +100,14 @@ func (e *Emulator) Update() error {
 
 		if !e.IsKeyPressed && ebiten.IsKeyPressed(ebiten.KeyRight) {
 			e.IsKeyPressed = true
-			debugPatternId = (debugPatternId + 1) % 28
+			debugPatternId = (debugPatternId + 1) % 8
 			fmt.Println("debugPatternId", debugPatternId)
 		}
 		if !e.IsKeyPressed && ebiten.IsKeyPressed(ebiten.KeyLeft) {
 			e.IsKeyPressed = true
-			debugPatternId = (debugPatternId - 1) % 28
+			debugPatternId = (debugPatternId - 1) % 8
 			if debugPatternId < 0 {
-				debugPatternId = 27
+				debugPatternId = 7
 			}
 			fmt.Println("debugPatternId", debugPatternId)
 		}
