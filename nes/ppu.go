@@ -185,7 +185,27 @@ func (p *PPU) PpuRead(addr uint16) uint8 {
 
 		} else if addr >= 0x2000 && addr <= 0x3EFF {
 			// name tables
-			data = p.tableName[0][addr&0x03FF]
+			if p.Cartridge.mirrorMode == Vertical {
+				if addr >= 0x2000 && addr <= 0x23FF {
+					data = p.tableName[0][addr&0x03FF]
+				} else if addr >= 0x2400 && addr <= 0x27FF {
+					data = p.tableName[1][addr&0x03FF]
+				} else if addr >= 0x2800 && addr <= 0x3BFF {
+					data = p.tableName[0][addr&0x03FF]
+				} else if addr >= 0x3C00 && addr <= 0x3EFF {
+					data = p.tableName[1][addr&0x03FF]
+				}
+			} else if p.Cartridge.mirrorMode == Horizontal {
+				if addr >= 0x2000 && addr <= 0x23FF {
+					data = p.tableName[0][addr&0x03FF]
+				} else if addr >= 0x2400 && addr <= 0x27FF {
+					data = p.tableName[0][addr&0x03FF]
+				} else if addr >= 0x2800 && addr <= 0x3BFF {
+					data = p.tableName[1][addr&0x03FF]
+				} else if addr >= 0x3C00 && addr <= 0x3EFF {
+					data = p.tableName[1][addr&0x03FF]
+				}
+			}
 
 		} else if addr >= 0x3F00 && addr <= 0x3FFF {
 			addr &= 0x001F
@@ -222,7 +242,27 @@ func (p *PPU) PpuWrite(addr uint16, data uint8) {
 
 		} else if addr >= 0x2000 && addr <= 0x3EFF {
 			// name tables
-			p.tableName[0][addr&0x03FF] = data
+			if p.Cartridge.mirrorMode == Vertical {
+				if addr >= 0x2000 && addr <= 0x23FF {
+					p.tableName[0][addr&0x03FF] = data
+				} else if addr >= 0x2400 && addr <= 0x27FF {
+					p.tableName[1][addr&0x03FF] = data
+				} else if addr >= 0x2800 && addr <= 0x3BFF {
+					p.tableName[0][addr&0x03FF] = data
+				} else if addr >= 0x3C00 && addr <= 0x3EFF {
+					p.tableName[1][addr&0x03FF] = data
+				}
+			} else if p.Cartridge.mirrorMode == Horizontal {
+				if addr >= 0x2000 && addr <= 0x23FF {
+					p.tableName[0][addr&0x03FF] = data
+				} else if addr >= 0x2400 && addr <= 0x27FF {
+					p.tableName[0][addr&0x03FF] = data
+				} else if addr >= 0x2800 && addr <= 0x3BFF {
+					p.tableName[1][addr&0x03FF] = data
+				} else if addr >= 0x3C00 && addr <= 0x3EFF {
+					p.tableName[1][addr&0x03FF] = data
+				}
+			}
 
 		} else if addr >= 0x3F00 && addr <= 0x3FFF {
 			addr &= 0x001F

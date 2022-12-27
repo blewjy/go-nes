@@ -15,6 +15,7 @@ type Cartridge struct {
 	mapperId    uint8
 	prgRomBanks uint8
 	chrRomBanks uint8
+	mirrorMode  MirrorMode
 
 	mapper Mapper
 }
@@ -64,6 +65,9 @@ func NewCartridge(filePath string) *Cartridge {
 
 	// Parse the mapperId ID
 	cartridge.mapperId = (h.mapper2>>4)<<4 | h.mapper>>4
+
+	// Parse the mirroring mode
+	cartridge.mirrorMode = parseMirrorMode(h.mapper)
 
 	// Parse the variant of the iNES file
 	cartridge.variant = parseVariant(headerData)
@@ -121,6 +125,24 @@ const (
 
 func parseVariant(data []byte) iNESVariant {
 	return iNES
+}
+
+type MirrorMode uint8
+
+const (
+	Horizontal MirrorMode = iota
+	Vertical
+)
+
+func parseMirrorMode(flag uint8) MirrorMode {
+	bit := flag & 0x01
+	if bit == 0 {
+		return Horizontal
+	} else if bit == 1 {
+		return Vertical
+	}
+	// Horizontal by default
+	return Horizontal
 }
 
 func (c *Cartridge) CpuRead(addr uint16) (uint8, bool) {
