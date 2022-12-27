@@ -1101,5 +1101,5 @@ func (cpu *CPU) nmi() {
 	cpu.SetFlag(B, true)
 	cpu.PushStatus()
 	cpu.SetFlag(B, false)
-	cpu.pc = cpu.Read16(0xFFFE)
+	cpu.pc = cpu.Read16(0xFFFA)
 }

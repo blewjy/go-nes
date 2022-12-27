@@ -33,7 +33,7 @@ func (b *Bus) Clock() {
 
 	if b.PPU.nmi {
 		b.PPU.nmi = false
-		//b.CPU.nmi()
+		b.CPU.nmi()
 	}
 
 	b.clockCounter++
