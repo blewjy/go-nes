@@ -74,6 +74,16 @@ type PPU struct {
 	ppuAddress    uint16
 	nmi           bool
 
+	// more PPU helpers
+	vramAddr    uint16
+	tramAddr    uint16
+	fineScrollX uint8
+
+	patternShiftHi uint8
+	patternShiftLo uint8
+	paletteShiftHi uint8
+	paletteShiftLo uint8
+
 	// ???
 	scanline      int
 	cycle         int
@@ -293,9 +303,19 @@ func (p *PPU) GetScreen() [256][240]color.Color {
 
 func (p *PPU) Clock() {
 
-	if p.scanline == 0 && p.cycle == 1 {
+	if p.scanline == 261 && p.cycle == 1 {
 		// set vertical blank
 		p.SetVerticalBlank(0)
+	}
+
+	if p.scanline == 261 && p.cycle >= 321 && p.cycle <= 336 {
+		p.fetchNextTileData()
+	}
+
+	if p.scanline >= 0 && p.scanline <= 239 {
+		if (p.cycle >= 1 && p.cycle <= 256) || (p.cycle >= 321 && p.cycle <= 336) {
+			p.fetchNextTileData()
+		}
 	}
 
 	if p.scanline == 241 && p.cycle == 1 {
@@ -317,14 +337,18 @@ func (p *PPU) Clock() {
 	//}
 
 	p.cycle++
-	if p.cycle >= 341 {
+	if p.cycle > 340 {
 		p.cycle = 0
 		p.scanline++
-		if p.scanline >= 261 {
+		if p.scanline > 261 {
 			p.scanline = 0
 			p.frameComplete = true
 		}
 	}
+}
+
+func (p *PPU) fetchNextTileData() {
+
 }
 
 func (p *PPU) GetPatternTableDisplay(tableIndex, paletteId int) [128][128]color.Color {
