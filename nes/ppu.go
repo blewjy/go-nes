@@ -308,12 +308,12 @@ func (p *PPU) Clock() {
 		p.SetVerticalBlank(0)
 	}
 
-	if p.scanline == 261 && p.cycle >= 321 && p.cycle <= 336 {
+	if p.scanline == 261 && p.cycle >= 329 && p.cycle <= 336 {
 		p.fetchNextTileData()
 	}
 
 	if p.scanline >= 0 && p.scanline <= 239 {
-		if (p.cycle >= 1 && p.cycle <= 256) || (p.cycle >= 321 && p.cycle <= 336) {
+		if (p.cycle >= 1 && p.cycle <= 256) || (p.cycle >= 329 && p.cycle <= 336) {
 			p.fetchNextTileData()
 		}
 	}
@@ -348,6 +348,26 @@ func (p *PPU) Clock() {
 }
 
 func (p *PPU) fetchNextTileData() {
+	x := p.cycle - 1
+	y := p.scanline
+	tileX := uint8(x / 8)
+	tileY := uint8(y / 8)
+
+	mustAssert(tileX, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 41)
+	mustAssert(tileY, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 32)
+
+	nextTileX := tileX + 1
+	nextTileY := tileY
+	if nextTileX > 31 {
+		nextTileX = 0
+		nextTileY += 1
+		if nextTileY > 29 {
+			nextTileY = 0
+		}
+	}
+
+	mustAssert(nextTileX, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31)
+	mustAssert(nextTileY, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29)
 
 }
 
