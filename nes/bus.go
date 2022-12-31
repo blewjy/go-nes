@@ -2,13 +2,17 @@ package nes
 
 type Bus struct {
 	// Devices on the bus
-	CPU       *CPU
-	PPU       *PPU
-	CpuRam    [2048]byte
-	Cartridge *Cartridge
+	CPU        *CPU
+	PPU        *PPU
+	CpuRam     [2048]byte
+	Cartridge  *Cartridge
+	Controller uint8
 
 	// Internal
 	clockCounter uint64 // CPU only
+
+	// Internal controller snapshot
+	controllerState uint8
 }
 
 func NewBus() *Bus {
@@ -50,6 +54,11 @@ func (b *Bus) CpuRead(addr uint16) uint8 {
 			data = b.CpuRam[addr&0x07FF]
 		} else if addr >= 0x2000 && addr <= 0x3FFF {
 			data = b.PPU.CpuRead(addr & 0x0007)
+		} else if addr >= 0x4016 && addr <= 0x4017 {
+			if b.controllerState&0x80 > 0 {
+				data = 1
+			}
+			b.controllerState <<= 1
 		}
 	}
 	return data
@@ -65,6 +74,8 @@ func (b *Bus) CpuWrite(addr uint16, data uint8) {
 			b.CpuRam[addr&0x07FF] = data
 		} else if addr >= 0x2000 && addr <= 0x3FFF {
 			b.PPU.CpuWrite(addr&0x0007, data)
+		} else if addr >= 0x4016 && addr <= 0x4017 {
+			b.controllerState = b.Controller
 		}
 	}
 }

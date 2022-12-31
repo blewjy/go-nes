@@ -328,14 +328,6 @@ func (p *PPU) Clock() {
 		}
 	}
 
-	// At each clock of the PPU, we will render a pixel to the screen at the current scanline and cycle.
-	// Cycle is like the X coordinate and scanline is like the Y coordinate
-	//if p.scanline < 240 && p.cycle < 256 {
-	//	x := p.cycle / 8
-	//	y := p.scanline / 8
-	//	p.screen[x][y] = p.colorPalette[(p.tableName[0][x+y*32])%0x40]
-	//}
-
 	p.cycle++
 	if p.cycle > 340 {
 		p.cycle = 0
@@ -396,8 +388,8 @@ func (p *PPU) fetchNextTileData() {
 		panic("invalid next pixel byte offset")
 	}
 
-	nextTilePixelByteLsb := p.PpuRead(0x1000*uint16(1) + nextTilePixelByteOffsetLsb)
-	nextTilePixelByteMsb := p.PpuRead(0x1000*uint16(1) + nextTilePixelByteOffsetMsb)
+	nextTilePixelByteLsb := p.PpuRead(0x1000*uint16(0) + nextTilePixelByteOffsetLsb)
+	nextTilePixelByteMsb := p.PpuRead(0x1000*uint16(0) + nextTilePixelByteOffsetMsb)
 
 	nextTilePixelBitLsb := (nextTilePixelByteLsb >> (7 - nextTilePixelOffsetX)) & 1
 	nextTilePixelBitMsb := (nextTilePixelByteMsb >> (7 - nextTilePixelOffsetX)) & 1

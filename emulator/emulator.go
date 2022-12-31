@@ -79,6 +79,35 @@ func NewEmulatorWithMode(mode Mode) *Emulator {
 	}
 }
 
+func (e *Emulator) UpdateVMInputs() {
+	input := uint8(0)
+	if ebiten.IsKeyPressed(ebiten.KeyX) {
+		input |= 0x80
+	}
+	if ebiten.IsKeyPressed(ebiten.KeyZ) {
+		input |= 0x40
+	}
+	if ebiten.IsKeyPressed(ebiten.KeyA) {
+		input |= 0x20
+	}
+	if ebiten.IsKeyPressed(ebiten.KeyS) {
+		input |= 0x10
+	}
+	if ebiten.IsKeyPressed(ebiten.KeyUp) {
+		input |= 0x08
+	}
+	if ebiten.IsKeyPressed(ebiten.KeyDown) {
+		input |= 0x04
+	}
+	if ebiten.IsKeyPressed(ebiten.KeyLeft) {
+		input |= 0x02
+	}
+	if ebiten.IsKeyPressed(ebiten.KeyRight) {
+		input |= 0x01
+	}
+	e.VM.SetControllerState(input)
+}
+
 // Update will run at exactly 60Hz
 func (e *Emulator) Update() error {
 	ebiten.SetWindowTitle(fmt.Sprintf("NES Emulator in Go! TPS: %v FPS: %v", ebiten.ActualTPS(), ebiten.ActualFPS()))
@@ -99,12 +128,12 @@ func (e *Emulator) Update() error {
 			e.State = Stepping
 		}
 
-		if !e.IsKeyPressed && ebiten.IsKeyPressed(ebiten.KeyRight) {
+		if !e.IsKeyPressed && ebiten.IsKeyPressed(ebiten.KeyPeriod) {
 			e.IsKeyPressed = true
 			debugPatternId = (debugPatternId + 1) % 8
 			fmt.Println("debugPatternId", debugPatternId)
 		}
-		if !e.IsKeyPressed && ebiten.IsKeyPressed(ebiten.KeyLeft) {
+		if !e.IsKeyPressed && ebiten.IsKeyPressed(ebiten.KeyComma) {
 			e.IsKeyPressed = true
 			debugPatternId = (debugPatternId - 1) % 8
 			if debugPatternId < 0 {
@@ -113,9 +142,12 @@ func (e *Emulator) Update() error {
 			fmt.Println("debugPatternId", debugPatternId)
 		}
 
-		if !ebiten.IsKeyPressed(ebiten.KeyRight) && !ebiten.IsKeyPressed(ebiten.KeyLeft) {
+		if !ebiten.IsKeyPressed(ebiten.KeyPeriod) && !ebiten.IsKeyPressed(ebiten.KeyComma) {
 			e.IsKeyPressed = false
 		}
+
+		e.UpdateVMInputs()
+
 	case Stepping:
 		if !e.IsKeyPressed && ebiten.IsKeyPressed(ebiten.KeySpace) {
 			e.IsKeyPressed = true

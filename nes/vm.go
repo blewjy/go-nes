@@ -75,6 +75,10 @@ func (v *VM) GetPaletteDisplay() [32]color.Color {
 	return v.bus.PPU.GetPaletteDisplay()
 }
 
+func (v *VM) SetControllerState(input uint8) {
+	v.bus.Controller = input
+}
+
 /** For debugging purposes only **/
 
 // PeekCPUResult is a struct containing all registers of the CPU.
