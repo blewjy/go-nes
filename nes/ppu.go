@@ -371,14 +371,14 @@ func (p *PPU) fetchNextTileData() {
 	nextTileX := nextX / 8
 	nextTileY := nextY / 8
 
-	mustAssertInt(nextTileX, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31)
-	mustAssertInt(nextTileY, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29)
+	//mustAssertInt(nextTileX, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31)
+	//mustAssertInt(nextTileY, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29)
 
 	nextTilePixelOffsetX := nextX % 8
 	nextTilePixelOffsetY := nextY % 8
 
-	mustAssertInt(nextTilePixelOffsetX, 0, 1, 2, 3, 4, 5, 6, 7)
-	mustAssertInt(nextTilePixelOffsetY, 0, 1, 2, 3, 4, 5, 6, 7)
+	//mustAssertInt(nextTilePixelOffsetX, 0, 1, 2, 3, 4, 5, 6, 7)
+	//mustAssertInt(nextTilePixelOffsetY, 0, 1, 2, 3, 4, 5, 6, 7)
 
 	nextTileNametableIndex := uint16(nextTileX) + uint16(nextTileY)*32
 	nextTileNametableByte := p.PpuRead(0x2000 + nextTileNametableIndex)
@@ -404,9 +404,46 @@ func (p *PPU) fetchNextTileData() {
 
 	nextTilePixelBits := nextTilePixelBitMsb<<1 | nextTilePixelBitLsb
 
-	paletteByteOffset := 0x3F00 + uint16(0)<<2 + uint16(nextTilePixelBits)
+	// attribute table info
+	nextAttrTileX := nextTileX / 4
+	nextAttrTileY := nextTileY / 4
 
-	colorIndex := p.PpuRead(paletteByteOffset)
+	//mustAssertInt(nextAttrTileX, 0, 1, 2, 3, 4, 5, 6, 7)
+	//mustAssertInt(nextAttrTileY, 0, 1, 2, 3, 4, 5, 6, 7)
+
+	nextAttrTileByteOffset := nextAttrTileX + nextAttrTileY*8
+
+	if nextAttrTileByteOffset > 63 {
+		panic("invalid nextAttrTileByteOffset")
+	}
+
+	nextAttrTileByte := p.PpuRead(0x23C0 + uint16(nextAttrTileByteOffset))
+	nextAttrTileInnerOffsetX := nextTileX % 2
+	nextAttrTileInnerOffsetY := nextTileY % 2
+
+	var nextAttrTileInfo uint8
+	if nextAttrTileInnerOffsetX == 0 && nextAttrTileInnerOffsetY == 0 {
+		nextAttrTileInfo = (nextAttrTileByte >> 0) & 0x3
+	} else if nextAttrTileInnerOffsetX == 1 && nextAttrTileInnerOffsetY == 0 {
+		nextAttrTileInfo = (nextAttrTileByte >> 2) & 0x3
+	} else if nextAttrTileInnerOffsetX == 0 && nextAttrTileInnerOffsetY == 1 {
+		nextAttrTileInfo = (nextAttrTileByte >> 4) & 0x3
+	} else if nextAttrTileInnerOffsetX == 1 && nextAttrTileInnerOffsetY == 1 {
+		nextAttrTileInfo = (nextAttrTileByte >> 6) & 0x3
+	}
+
+	mustAssert(nextAttrTileInfo, 0, 1, 2, 3)
+
+	nextAttrTileInfoLsb := (nextAttrTileInfo >> 0) & 0x1
+	nextAttrTileInfoMsb := (nextAttrTileInfo >> 1) & 0x1
+
+	nextAttrTileInfo = nextAttrTileInfoMsb<<1 | nextAttrTileInfoLsb
+
+	paletteByteOffset := uint16(nextAttrTileInfo)<<2 | uint16(nextTilePixelBits)
+
+	paletteByteAddr := 0x3F00 + paletteByteOffset
+
+	colorIndex := p.PpuRead(paletteByteAddr)
 
 	p.screen[nextX][nextY] = p.colorPalette[colorIndex]
 }
