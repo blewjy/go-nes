@@ -11,6 +11,15 @@ func mustAssert(actual uint8, possible ...uint8) {
 	panic(fmt.Sprintf("assertion failed: actual=%v, possible=%v", actual, possible))
 }
 
+func mustAssertInt(actual int, possible ...int) {
+	for _, expected := range possible {
+		if actual == expected {
+			return
+		}
+	}
+	panic(fmt.Sprintf("assertion failed: actual=%v, possible=%v", actual, possible))
+}
+
 type PpuCtrl uint8
 
 func (p *PPU) GetBaseNametable() uint8 {

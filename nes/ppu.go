@@ -101,7 +101,7 @@ func NewPPU() *PPU {
 	for i := 0; i < 256; i++ {
 		screen[i] = [240]color.Color{}
 		for j := 0; j < 240; j++ {
-			screen[i][j] = color.Black
+			screen[i][j] = color.RGBA{255, 0, 0, 255}
 		}
 	}
 	return &PPU{
@@ -350,25 +350,65 @@ func (p *PPU) Clock() {
 func (p *PPU) fetchNextTileData() {
 	x := p.cycle - 1
 	y := p.scanline
-	tileX := uint8(x / 8)
-	tileY := uint8(y / 8)
+	nextX := x + 1
+	nextY := y
 
-	mustAssert(tileX, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 41)
-	mustAssert(tileY, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 32)
-
-	nextTileX := tileX + 1
-	nextTileY := tileY
-	if nextTileX > 31 {
-		nextTileX = 0
-		nextTileY += 1
-		if nextTileY > 29 {
-			nextTileY = 0
+	if nextX > 255 {
+		nextX = 0
+		nextY += 1
+		if nextY == 262 {
+			nextY = 0
+		}
+		if nextY > 239 {
+			return
 		}
 	}
 
-	mustAssert(nextTileX, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31)
-	mustAssert(nextTileY, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29)
+	if nextX > 255 || nextY > 239 {
+		panic("invalid nextX or nextY")
+	}
 
+	nextTileX := nextX / 8
+	nextTileY := nextY / 8
+
+	mustAssertInt(nextTileX, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31)
+	mustAssertInt(nextTileY, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29)
+
+	nextTilePixelOffsetX := nextX % 8
+	nextTilePixelOffsetY := nextY % 8
+
+	mustAssertInt(nextTilePixelOffsetX, 0, 1, 2, 3, 4, 5, 6, 7)
+	mustAssertInt(nextTilePixelOffsetY, 0, 1, 2, 3, 4, 5, 6, 7)
+
+	nextTileNametableIndex := uint16(nextTileX) + uint16(nextTileY)*32
+	nextTileNametableByte := p.PpuRead(0x2000 + nextTileNametableIndex)
+
+	nextTilePatternTableByteOffset := uint16(nextTileNametableByte) * 16
+
+	if nextTilePatternTableByteOffset > 4080 {
+		panic("invalid nextTilePatternTableByteOffset")
+	}
+
+	nextTilePixelByteOffsetLsb := nextTilePatternTableByteOffset + uint16(nextTilePixelOffsetY)
+	nextTilePixelByteOffsetMsb := nextTilePatternTableByteOffset + uint16(nextTilePixelOffsetY) + 8
+
+	if nextTilePixelByteOffsetLsb >= 0x1000 || nextTilePixelByteOffsetMsb >= 0x1000 {
+		panic("invalid next pixel byte offset")
+	}
+
+	nextTilePixelByteLsb := p.PpuRead(0x1000*uint16(1) + nextTilePixelByteOffsetLsb)
+	nextTilePixelByteMsb := p.PpuRead(0x1000*uint16(1) + nextTilePixelByteOffsetMsb)
+
+	nextTilePixelBitLsb := (nextTilePixelByteLsb >> (7 - nextTilePixelOffsetX)) & 1
+	nextTilePixelBitMsb := (nextTilePixelByteMsb >> (7 - nextTilePixelOffsetX)) & 1
+
+	nextTilePixelBits := nextTilePixelBitMsb<<1 | nextTilePixelBitLsb
+
+	paletteByteOffset := 0x3F00 + uint16(0)<<2 + uint16(nextTilePixelBits)
+
+	colorIndex := p.PpuRead(paletteByteOffset)
+
+	p.screen[nextX][nextY] = p.colorPalette[colorIndex]
 }
 
 func (p *PPU) GetPatternTableDisplay(tableIndex, paletteId int) [128][128]color.Color {
@@ -391,6 +431,10 @@ func (p *PPU) GetPatternTableDisplay(tableIndex, paletteId int) [128][128]color.
 			msbPixelBit := (msbPixelByte >> (7 - pixelX)) & 1
 
 			pixelBits := msbPixelBit<<1 | lsbPixelBit
+
+			if pixelBits >= 4 {
+				panic("no no no no nooo~")
+			}
 
 			paletteByteOffset := 0x3F00 + uint16(paletteId)<<2 + uint16(pixelBits)
 

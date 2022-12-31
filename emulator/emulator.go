@@ -259,54 +259,62 @@ func (e *Emulator) DrawPatternTableAt(screen *ebiten.Image, x, y int) {
 }
 
 func (e *Emulator) DrawScreenAt(screen *ebiten.Image, x, y int) {
-	//vmScreen := e.VM.GetScreen()
-	//
-	//var pixels []byte
-	//for px := 0; px < 256; px++ {
-	//	for py := 0; py < 240; py++ {
-	//		r, g, b, a := vmScreen[px][py].RGBA()
-	//		pixels = append(pixels, uint8(r))
-	//		pixels = append(pixels, uint8(g))
-	//		pixels = append(pixels, uint8(b))
-	//		pixels = append(pixels, uint8(a))
-	//	}
-	//}
-	//
-	//screenImage.WritePixels(pixels)
-	//
-	//op := &ebiten.DrawImageOptions{}
-	//op.GeoM.Translate(float64(x), float64(y))
-	//
-	//screen.DrawImage(screenImage, op)
+	choose := true
+	//choose := false
 
-	display := e.VM.GetPatternTableDisplay(1, debugPatternId)
-	var pixels []byte
-	for px := 0; px < 128; px++ {
-		for py := 0; py < 128; py++ {
-			r, g, b, a := display[px][py].RGBA()
-			pixels = append(pixels, uint8(r))
-			pixels = append(pixels, uint8(g))
-			pixels = append(pixels, uint8(b))
-			pixels = append(pixels, uint8(a))
+	if choose {
+
+		vmScreen := e.VM.GetScreen()
+
+		var pixels []byte
+		for py := 0; py < 240; py++ {
+			for px := 0; px < 256; px++ {
+				r, g, b, a := vmScreen[px][py].RGBA()
+				pixels = append(pixels, uint8(r))
+				pixels = append(pixels, uint8(g))
+				pixels = append(pixels, uint8(b))
+				pixels = append(pixels, uint8(a))
+			}
 		}
-	}
-	patternTableImage.WritePixels(pixels)
 
-	nametable := e.VM.GetPPUNametable()
+		screenImage.WritePixels(pixels)
 
-	for px := 0; px < 32; px++ {
-		for py := 0; py < 30; py++ {
-			op := &ebiten.DrawImageOptions{}
-			op.GeoM.Translate(float64(x+px*8), float64(y+py*8))
+		op := &ebiten.DrawImageOptions{}
+		op.GeoM.Translate(float64(x), float64(y))
 
-			byteOffset := px + py*32
-			tileOffset := nametable[byteOffset]
-			xOffset := int(tileOffset % 16)
-			yOffset := int(tileOffset / 16)
+		screen.DrawImage(screenImage, op)
 
-			subImg := patternTableImage.SubImage(image.Rect(xOffset*8, yOffset*8, xOffset*8+8, yOffset*8+8)).(*ebiten.Image)
+	} else {
 
-			screen.DrawImage(subImg, op)
+		display := e.VM.GetPatternTableDisplay(1, debugPatternId)
+		var pixels []byte
+		for px := 0; px < 128; px++ {
+			for py := 0; py < 128; py++ {
+				r, g, b, a := display[px][py].RGBA()
+				pixels = append(pixels, uint8(r))
+				pixels = append(pixels, uint8(g))
+				pixels = append(pixels, uint8(b))
+				pixels = append(pixels, uint8(a))
+			}
+		}
+		patternTableImage.WritePixels(pixels)
+
+		nametable := e.VM.GetPPUNametable()
+
+		for px := 0; px < 32; px++ {
+			for py := 0; py < 30; py++ {
+				op := &ebiten.DrawImageOptions{}
+				op.GeoM.Translate(float64(x+px*8), float64(y+py*8))
+
+				byteOffset := px + py*32
+				tileOffset := nametable[byteOffset]
+				xOffset := int(tileOffset % 16)
+				yOffset := int(tileOffset / 16)
+
+				subImg := patternTableImage.SubImage(image.Rect(xOffset*8, yOffset*8, xOffset*8+8, yOffset*8+8)).(*ebiten.Image)
+
+				screen.DrawImage(subImg, op)
+			}
 		}
 	}
 
