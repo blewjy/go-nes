@@ -65,6 +65,9 @@ type PPU struct {
 	ppuAddr   uint8     // 0x2006
 	ppuData   uint8     // 0x2007
 
+	// PPU Object Attribute Memory (OAM)
+	ppuOam [256]uint8
+
 	// ???
 	oamDma uint8 // 0x4014
 
@@ -85,6 +88,13 @@ type PPU struct {
 	patternShiftLo uint8
 	paletteShiftHi uint8
 	paletteShiftLo uint8
+
+	spriteActivated   [8]bool
+	spriteShiftHi     [8]uint8
+	spriteShiftLo     [8]uint8
+	spriteAttrInfo    [8]uint8
+	spriteCounters    [8]uint8
+	spriteRenderCount [8]uint8
 
 	// ???
 	scanline      int
@@ -187,6 +197,10 @@ func (p *PPU) CpuWrite(addr uint16, data uint8) {
 			p.ppuAddress += 1
 		}
 	}
+}
+
+func (p *PPU) PpuOamWrite(offset, data uint8) {
+	p.ppuOam[offset] = data
 }
 
 func (p *PPU) PpuRead(addr uint16) uint8 {
@@ -449,6 +463,92 @@ func (p *PPU) fetchNextTileData() {
 	paletteByteAddr := 0x3F00 + paletteByteOffset
 
 	colorIndex := p.PpuRead(paletteByteAddr)
+
+	/** sprites **/
+
+	if x == 0 {
+
+		p.spriteActivated = [8]bool{false, false, false, false, false, false, false, false}
+		p.spriteShiftLo = [8]uint8{0, 0, 0, 0, 0, 0, 0, 0}
+		p.spriteShiftHi = [8]uint8{0, 0, 0, 0, 0, 0, 0, 0}
+		p.spriteCounters = [8]uint8{255, 255, 255, 255, 255, 255, 255, 255}
+		p.spriteRenderCount = [8]uint8{0, 0, 0, 0, 0, 0, 0, 0}
+
+		spriteIndex := 0
+
+		for i := 0; i < 256; i += 4 {
+			spritePositionY := p.ppuOam[i] - 1
+			spriteTileIndexNumber := p.ppuOam[i+1]
+			spriteTileAttributes := p.ppuOam[i+2]
+			spritePositionX := p.ppuOam[i+3]
+
+			//fmt.Printf("row %d: sprite pos (%d, %d), sprite index (%d), sprite attr (%d)\n", y, spritePositionX, spritePositionY, spriteTileIndexNumber, spriteTileAttributes)
+
+			if uint8(y) >= spritePositionY && uint8(y) <= spritePositionY+7 {
+				spritePixelRowOffsetFromTop := uint8(y) - spritePositionY
+
+				spritePatternTableByteOffset := uint16(spriteTileIndexNumber) * 16
+
+				if spritePatternTableByteOffset > 4080 {
+					panic("invalid spritePatternTableByteOffset")
+				}
+
+				spritePixelByteOffsetLsb := spritePatternTableByteOffset + uint16(spritePixelRowOffsetFromTop)
+				spritePixelByteOffsetMsb := spritePatternTableByteOffset + uint16(spritePixelRowOffsetFromTop) + 8
+
+				if spritePixelByteOffsetLsb >= 0x1000 || spritePixelByteOffsetMsb >= 0x1000 {
+					panic("invalid next sprite pixel byte offset")
+				}
+
+				p.spriteShiftLo[spriteIndex] = p.PpuRead(0x1000*uint16(p.GetSpritePatternTableAddr()) + spritePixelByteOffsetLsb)
+				p.spriteShiftHi[spriteIndex] = p.PpuRead(0x1000*uint16(p.GetSpritePatternTableAddr()) + spritePixelByteOffsetMsb)
+				p.spriteAttrInfo[spriteIndex] = spriteTileAttributes
+				p.spriteCounters[spriteIndex] = spritePositionX + 1
+
+				spriteIndex++
+			}
+
+			if spriteIndex > 7 {
+				break
+			}
+		}
+	}
+
+	done := false
+	for i := 0; i < 8; i++ {
+		if p.spriteCounters[i] == 255 {
+			continue
+		}
+
+		if p.spriteCounters[i] != 0 {
+			p.spriteCounters[i]--
+		}
+
+		if p.spriteCounters[i] <= 0 {
+			p.spriteActivated[i] = true
+		}
+
+		if !done && p.spriteActivated[i] && p.spriteRenderCount[i] < 8 {
+			spritePixelBitLsb := (p.spriteShiftLo[i] & 0x80) >> 7
+			spritePixelBitMsb := (p.spriteShiftHi[i] & 0x80) >> 7
+			p.spriteShiftLo[i] <<= 1
+			p.spriteShiftHi[i] <<= 1
+
+			spritePixelBits := spritePixelBitMsb<<1 | spritePixelBitLsb
+
+			spritePaletteByteOffset := uint16(p.spriteAttrInfo[i])<<2 | uint16(spritePixelBits)
+			spritePaletteByteAddr := 0x3F10 + spritePaletteByteOffset
+			colorIndex = p.PpuRead(spritePaletteByteAddr)
+
+			done = true
+
+			p.spriteRenderCount[i]++
+		}
+	}
+
+	// for each 8 sprite
+	// each cycle, decrement sprite's x position
+	// if sprite x == 0, render the earliest pixel in the 8 pixels shift register, then shift that register
 
 	p.screen[nextX][nextY] = p.colorPalette[colorIndex]
 }

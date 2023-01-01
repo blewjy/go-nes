@@ -74,6 +74,15 @@ func (b *Bus) CpuWrite(addr uint16, data uint8) {
 			b.CpuRam[addr&0x07FF] = data
 		} else if addr >= 0x2000 && addr <= 0x3FFF {
 			b.PPU.CpuWrite(addr&0x0007, data)
+
+		} else if addr == 0x4014 {
+			for d := uint8(0x00); ; d++ {
+				targetAddr := uint16(data)<<8 | uint16(d)
+				b.PPU.PpuOamWrite(d, b.CpuRead(targetAddr))
+				if d == 0xFF {
+					break
+				}
+			}
 		} else if addr >= 0x4016 && addr <= 0x4017 {
 			b.controllerState = b.Controller
 		}

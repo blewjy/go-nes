@@ -5,8 +5,8 @@ import "go-nes/emulator"
 func main() {
 	//emulator.NewEmulator().StartWithROM("roms/Super Mario Bros. (World).nes")
 	//emulator.NewEmulator().StartWithROM("roms/DuckTales (USA).nes")
-	emulator.NewEmulator().StartWithROM("roms/Ice Climber (U).nes")
-	//emulator.NewEmulator().StartWithROM("roms/Donkey Kong (World) (Rev A).nes")
+	//emulator.NewEmulator().StartWithROM("roms/Ice Climber (U).nes")
+	emulator.NewEmulator().StartWithROM("roms/Donkey Kong (World) (Rev A).nes")
 	//emulator.NewEmulatorWithMode(emulator.Automation).StartWithROM("roms/nestest.nes")
 	//emulator.NewEmulator().StartWithROM("roms/nestest.nes")
 
