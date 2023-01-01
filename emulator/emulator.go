@@ -3,7 +3,6 @@ package emulator
 import (
 	"fmt"
 	"go-nes/nes"
-	"image"
 	"image/color"
 	"log"
 
@@ -56,6 +55,7 @@ type Emulator struct {
 
 	// Debugging controls
 	IsKeyPressed bool
+	IsDebugMode  bool
 
 	// Debugging info
 	Disassembly map[uint16]string
@@ -127,6 +127,9 @@ func (e *Emulator) Update() error {
 		if ebiten.IsKeyPressed(ebiten.KeyF1) {
 			e.State = Stepping
 		}
+		if ebiten.IsKeyPressed(ebiten.KeyTab) {
+			e.IsDebugMode = !e.IsDebugMode
+		}
 
 		if !e.IsKeyPressed && ebiten.IsKeyPressed(ebiten.KeyPeriod) {
 			e.IsKeyPressed = true
@@ -142,7 +145,7 @@ func (e *Emulator) Update() error {
 			fmt.Println("debugPatternId", debugPatternId)
 		}
 
-		if !ebiten.IsKeyPressed(ebiten.KeyPeriod) && !ebiten.IsKeyPressed(ebiten.KeyComma) {
+		if !ebiten.IsKeyPressed(ebiten.KeyPeriod) && !ebiten.IsKeyPressed(ebiten.KeyComma) && !ebiten.IsKeyPressed(ebiten.KeyTab) {
 			e.IsKeyPressed = false
 		}
 
@@ -157,11 +160,14 @@ func (e *Emulator) Update() error {
 			e.IsKeyPressed = true
 			e.VM.StepFrame()
 		}
-		if !ebiten.IsKeyPressed(ebiten.KeySpace) && !ebiten.IsKeyPressed(ebiten.KeyF) {
+		if !ebiten.IsKeyPressed(ebiten.KeySpace) && !ebiten.IsKeyPressed(ebiten.KeyF) && !ebiten.IsKeyPressed(ebiten.KeyTab) {
 			e.IsKeyPressed = false
 		}
 		if ebiten.IsKeyPressed(ebiten.KeyF2) {
 			e.State = Running
+		}
+		if ebiten.IsKeyPressed(ebiten.KeyTab) {
+			e.IsDebugMode = !e.IsDebugMode
 		}
 	case Paused:
 		if ebiten.IsKeyPressed(ebiten.KeyR) {
@@ -291,63 +297,55 @@ func (e *Emulator) DrawPatternTableAt(screen *ebiten.Image, x, y int) {
 }
 
 func (e *Emulator) DrawScreenAt(screen *ebiten.Image, x, y int) {
-	choose := true
-	//choose := false
 
-	if choose {
+	vmScreen := e.VM.GetScreen()
 
-		vmScreen := e.VM.GetScreen()
+	var pixels []byte
+	for py := 0; py < 240; py++ {
+		for px := 0; px < 256; px++ {
+			r, g, b, a := vmScreen[px][py].RGBA()
+			pixels = append(pixels, uint8(r))
+			pixels = append(pixels, uint8(g))
+			pixels = append(pixels, uint8(b))
+			pixels = append(pixels, uint8(a))
+		}
+	}
 
-		var pixels []byte
-		for py := 0; py < 240; py++ {
-			for px := 0; px < 256; px++ {
-				r, g, b, a := vmScreen[px][py].RGBA()
-				pixels = append(pixels, uint8(r))
-				pixels = append(pixels, uint8(g))
-				pixels = append(pixels, uint8(b))
-				pixels = append(pixels, uint8(a))
+	screenImage.WritePixels(pixels)
+
+	op := &ebiten.DrawImageOptions{}
+	op.GeoM.Translate(float64(x), float64(y))
+
+	screen.DrawImage(screenImage, op)
+
+	clr8 := color.RGBA{R: 255, G: 255, B: 255, A: 50}
+	clr32 := color.RGBA{R: 255, G: 255, B: 0, A: 150}
+
+	if e.IsDebugMode {
+		attrTable := e.VM.GetPPUAttributeTable(0)
+
+		for dx := 0; dx <= 256; dx += 8 {
+			clr := clr8
+			if dx%32 == 0 {
+				clr = clr32
+			}
+			ebitenutil.DrawLine(screen, float64(x+dx), float64(y), float64(x+dx), float64(y)+240, clr)
+		}
+		for dy := 0; dy <= 240; dy += 8 {
+			clr := clr8
+			if dy%32 == 0 {
+				clr = clr32
+			}
+			ebitenutil.DrawLine(screen, float64(x), float64(y+dy), float64(x)+256, float64(y+dy), clr)
+		}
+
+		for dy := 0; dy < 240; dy += 32 {
+			for dx := 0; dx < 256; dx += 32 {
+				idx := (dx / 32) + (dy/32)*8
+				ebitenutil.DebugPrintAt(screen, fmt.Sprintf("0x%02X", attrTable[idx]), x+dx, y+dy)
 			}
 		}
 
-		screenImage.WritePixels(pixels)
-
-		op := &ebiten.DrawImageOptions{}
-		op.GeoM.Translate(float64(x), float64(y))
-
-		screen.DrawImage(screenImage, op)
-
-	} else {
-
-		display := e.VM.GetPatternTableDisplay(1, debugPatternId)
-		var pixels []byte
-		for px := 0; px < 128; px++ {
-			for py := 0; py < 128; py++ {
-				r, g, b, a := display[px][py].RGBA()
-				pixels = append(pixels, uint8(r))
-				pixels = append(pixels, uint8(g))
-				pixels = append(pixels, uint8(b))
-				pixels = append(pixels, uint8(a))
-			}
-		}
-		patternTableImage.WritePixels(pixels)
-
-		nametable := e.VM.GetPPUNametable()
-
-		for px := 0; px < 32; px++ {
-			for py := 0; py < 30; py++ {
-				op := &ebiten.DrawImageOptions{}
-				op.GeoM.Translate(float64(x+px*8), float64(y+py*8))
-
-				byteOffset := px + py*32
-				tileOffset := nametable[byteOffset]
-				xOffset := int(tileOffset % 16)
-				yOffset := int(tileOffset / 16)
-
-				subImg := patternTableImage.SubImage(image.Rect(xOffset*8, yOffset*8, xOffset*8+8, yOffset*8+8)).(*ebiten.Image)
-
-				screen.DrawImage(subImg, op)
-			}
-		}
 	}
 
 }

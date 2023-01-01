@@ -67,6 +67,10 @@ func (v *VM) GetPPUNametable() [1024]uint8 {
 	return v.bus.PPU.tableName[0]
 }
 
+func (v *VM) GetPPUAttributeTable(nametableIndex int) []uint8 {
+	return v.bus.PPU.GetAttributeTable(nametableIndex)
+}
+
 func (v *VM) GetPatternTableDisplay(tableIndex, paletteId int) [128][128]color.Color {
 	return v.bus.PPU.GetPatternTableDisplay(tableIndex, paletteId)
 }

@@ -301,6 +301,10 @@ func (p *PPU) GetScreen() [256][240]color.Color {
 	return p.screen
 }
 
+func (p *PPU) GetAttributeTable(tableIndex int) []uint8 {
+	return p.tableName[tableIndex][960:]
+}
+
 func (p *PPU) Clock() {
 
 	if p.scanline == 261 && p.cycle == 1 {
@@ -410,8 +414,8 @@ func (p *PPU) fetchNextTileData() {
 	}
 
 	nextAttrTileByte := p.PpuRead(0x23C0 + uint16(nextAttrTileByteOffset))
-	nextAttrTileInnerOffsetX := nextTileX % 2
-	nextAttrTileInnerOffsetY := nextTileY % 2
+	nextAttrTileInnerOffsetX := (nextTileX % 4) / 2
+	nextAttrTileInnerOffsetY := (nextTileY % 4) / 2
 
 	var nextAttrTileInfo uint8
 	if nextAttrTileInnerOffsetX == 0 && nextAttrTileInnerOffsetY == 0 {
