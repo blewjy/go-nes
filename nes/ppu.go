@@ -75,9 +75,11 @@ type PPU struct {
 	nmi           bool
 
 	// more PPU helpers
-	vramAddr    uint16
-	tramAddr    uint16
-	fineScrollX uint8
+	vramAddr     uint16
+	tramAddr     uint16
+	fineScrollX  uint8
+	camPositionX uint8
+	camPositionY uint8
 
 	patternShiftHi uint8
 	patternShiftLo uint8
@@ -160,6 +162,13 @@ func (p *PPU) CpuWrite(addr uint16, data uint8) {
 	case 0x0003: // OAM Address
 	case 0x0004: // OAM Data
 	case 0x0005: // Scroll
+		if p.addressLatch == 0 {
+			p.camPositionX = data
+			p.addressLatch = 1
+		} else {
+			p.camPositionY = data
+			p.addressLatch = 0
+		}
 	case 0x0006: // PPU Address
 		if p.addressLatch == 0 {
 			p.ppuAddress = p.ppuAddress&0x00FF | (uint16(data) << 8)
@@ -377,7 +386,7 @@ func (p *PPU) fetchNextTileData() {
 	//mustAssertInt(nextTilePixelOffsetY, 0, 1, 2, 3, 4, 5, 6, 7)
 
 	nextTileNametableIndex := uint16(nextTileX) + uint16(nextTileY)*32
-	nextTileNametableByte := p.PpuRead(0x2000 + nextTileNametableIndex)
+	nextTileNametableByte := p.PpuRead(0x2000 + (0x400 * uint16(p.GetBaseNametable())) + nextTileNametableIndex)
 
 	nextTilePatternTableByteOffset := uint16(nextTileNametableByte) * 16
 
