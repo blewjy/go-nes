@@ -63,8 +63,8 @@ func (v *VM) GetScreen() [256][240]color.Color {
 	return v.bus.PPU.GetScreen()
 }
 
-func (v *VM) GetPPUNametable() [1024]uint8 {
-	return v.bus.PPU.tableName[0]
+func (v *VM) GetPPUNametable(index int) [1024]uint8 {
+	return v.bus.PPU.tableName[index]
 }
 
 func (v *VM) GetPPUAttributeTable(nametableIndex int) []uint8 {

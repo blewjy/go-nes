@@ -3,6 +3,7 @@ package emulator
 import (
 	"fmt"
 	"go-nes/nes"
+	"image"
 	"image/color"
 	"log"
 
@@ -190,6 +191,12 @@ func (e *Emulator) Update() error {
 			e.State = Nametable
 		}
 	case Nametable:
+		if e.PrevState == Running {
+			for i := 0; i < cpuClockSpeed/600; i++ {
+				e.VM.Step()
+			}
+		}
+
 		if !ebiten.IsKeyPressed(ebiten.KeyShift) {
 			e.State = e.PrevState
 		}
@@ -200,12 +207,68 @@ func (e *Emulator) Update() error {
 }
 
 func (e *Emulator) Draw(screen *ebiten.Image) {
-	e.DrawScreenAt(screen, 8, 8)
-	e.DrawPaletteTableAt(screen, 8, 256)
-	e.DrawPatternTableAt(screen, 8, 272)
-	e.DrawStateAt(screen, 272, 8)
-	e.DrawCpuAt(screen, 272, 36)
-	e.DrawDisassemblyAt(screen, 272, 128)
+	if e.State == Nametable {
+		e.DrawAllNametables(screen)
+	} else {
+		e.DrawScreenAt(screen, 8, 8)
+		e.DrawPaletteTableAt(screen, 8, 256)
+		e.DrawPatternTableAt(screen, 8, 272)
+		e.DrawStateAt(screen, 272, 8)
+		e.DrawCpuAt(screen, 272, 36)
+		e.DrawDisassemblyAt(screen, 272, 128)
+	}
+}
+
+func (e *Emulator) DrawAllNametables(screen *ebiten.Image) {
+
+	display := e.VM.GetPatternTableDisplay(1, debugPatternId)
+	var pixels []byte
+	for px := 0; px < 128; px++ {
+		for py := 0; py < 128; py++ {
+			r, g, b, a := display[px][py].RGBA()
+			pixels = append(pixels, uint8(r))
+			pixels = append(pixels, uint8(g))
+			pixels = append(pixels, uint8(b))
+			pixels = append(pixels, uint8(a))
+		}
+	}
+	patternTableImage.WritePixels(pixels)
+
+	nametable0 := e.VM.GetPPUNametable(0)
+
+	for px := 0; px < 32; px++ {
+		for py := 0; py < 30; py++ {
+			op := &ebiten.DrawImageOptions{}
+			op.GeoM.Translate(float64(px*8), float64(py*8))
+
+			byteOffset := px + py*32
+			tileOffset := nametable0[byteOffset]
+			xOffset := int(tileOffset % 16)
+			yOffset := int(tileOffset / 16)
+
+			subImg := patternTableImage.SubImage(image.Rect(xOffset*8, yOffset*8, xOffset*8+8, yOffset*8+8)).(*ebiten.Image)
+
+			screen.DrawImage(subImg, op)
+		}
+	}
+
+	nametable1 := e.VM.GetPPUNametable(1)
+	for px := 0; px < 32; px++ {
+		for py := 0; py < 30; py++ {
+			op := &ebiten.DrawImageOptions{}
+			op.GeoM.Translate(float64(px*8), float64(240+py*8))
+
+			byteOffset := px + py*32
+			tileOffset := nametable1[byteOffset]
+			xOffset := int(tileOffset % 16)
+			yOffset := int(tileOffset / 16)
+
+			subImg := patternTableImage.SubImage(image.Rect(xOffset*8, yOffset*8, xOffset*8+8, yOffset*8+8)).(*ebiten.Image)
+
+			screen.DrawImage(subImg, op)
+		}
+	}
+
 }
 
 func (e *Emulator) DrawDisassemblyAt(screen *ebiten.Image, x, y int) {
