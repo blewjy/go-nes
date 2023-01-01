@@ -388,8 +388,8 @@ func (p *PPU) fetchNextTileData() {
 		panic("invalid next pixel byte offset")
 	}
 
-	nextTilePixelByteLsb := p.PpuRead(0x1000*uint16(0) + nextTilePixelByteOffsetLsb)
-	nextTilePixelByteMsb := p.PpuRead(0x1000*uint16(0) + nextTilePixelByteOffsetMsb)
+	nextTilePixelByteLsb := p.PpuRead(0x1000*uint16(p.GetBackgroundPatternTableAddr()) + nextTilePixelByteOffsetLsb)
+	nextTilePixelByteMsb := p.PpuRead(0x1000*uint16(p.GetBackgroundPatternTableAddr()) + nextTilePixelByteOffsetMsb)
 
 	nextTilePixelBitLsb := (nextTilePixelByteLsb >> (7 - nextTilePixelOffsetX)) & 1
 	nextTilePixelBitMsb := (nextTilePixelByteMsb >> (7 - nextTilePixelOffsetX)) & 1
