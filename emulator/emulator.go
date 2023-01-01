@@ -11,9 +11,9 @@ import (
 )
 
 const (
-	windowWidth  = 1280
-	windowHeight = 1240
-	windowScale  = 3
+	windowWidth  = 1024
+	windowHeight = 960
+	windowScale  = 2
 
 	cpuClockSpeed = 1789773
 )
@@ -39,10 +39,11 @@ const (
 type State string
 
 const (
-	Init     State = "init"
-	Running  State = "running"
-	Stepping State = "stepping"
-	Paused   State = "paused"
+	Init      State = "init"
+	Running   State = "running"
+	Stepping  State = "stepping"
+	Paused    State = "paused"
+	Nametable State = "nametable"
 )
 
 type Emulator struct {
@@ -50,8 +51,9 @@ type Emulator struct {
 	VM *nes.VM
 
 	// Settings
-	Mode  Mode
-	State State
+	Mode      Mode
+	State     State
+	PrevState State
 
 	// Debugging controls
 	IsKeyPressed bool
@@ -127,7 +129,12 @@ func (e *Emulator) Update() error {
 		if ebiten.IsKeyPressed(ebiten.KeyF1) {
 			e.State = Stepping
 		}
-		if ebiten.IsKeyPressed(ebiten.KeyTab) {
+		if ebiten.IsKeyPressed(ebiten.KeyShift) {
+			e.PrevState = Running
+			e.State = Nametable
+		}
+		if !e.IsKeyPressed && ebiten.IsKeyPressed(ebiten.KeyTab) {
+			e.IsKeyPressed = true
 			e.IsDebugMode = !e.IsDebugMode
 		}
 
@@ -166,12 +173,25 @@ func (e *Emulator) Update() error {
 		if ebiten.IsKeyPressed(ebiten.KeyF2) {
 			e.State = Running
 		}
-		if ebiten.IsKeyPressed(ebiten.KeyTab) {
+		if ebiten.IsKeyPressed(ebiten.KeyShift) {
+			e.PrevState = Stepping
+			e.State = Nametable
+		}
+		if !e.IsKeyPressed && ebiten.IsKeyPressed(ebiten.KeyTab) {
+			e.IsKeyPressed = true
 			e.IsDebugMode = !e.IsDebugMode
 		}
 	case Paused:
 		if ebiten.IsKeyPressed(ebiten.KeyR) {
 			e.State = Running
+		}
+		if ebiten.IsKeyPressed(ebiten.KeyShift) {
+			e.PrevState = Paused
+			e.State = Nametable
+		}
+	case Nametable:
+		if !ebiten.IsKeyPressed(ebiten.KeyShift) {
+			e.State = e.PrevState
 		}
 
 	}
